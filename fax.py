@@ -84,6 +84,25 @@ class Project(object):
         for traj in self.get_trajectories():
             traj.coalesce(keeplast=keeplast)
 
+    def merge(self, proj):
+        """
+        Add the data in *proj* to the current project
+        """
+        merge_projects(self, proj)
+
+
+def merge_projects(proj1, proj2):
+    """
+    Update proj1 with the data in proj2
+    WARNING: this modifes the state proj1
+    """
+
+    for run,rundata in proj2.data.iteritems():
+        for clone, clonedata in rundata.iteritems():
+            for gen, gendata in clonedata.data.iteritems():
+                proj1.add_generation(run, clone, gen, gendata)
+    return proj1
+
 
 
 def start_pool(nprocs=None):
