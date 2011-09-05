@@ -69,16 +69,11 @@ if __name__ == '__main__':
     # average lifetimes
     T = np.zeros(len(ranges))
 
-    print 'Searching for datafiles'
-    datafiles = glob.iglob(os.path.join(fahroot, 'RUN*', 'CLONE*', 'GEN*.dat'))
-    # print 'Got', len(datafiles), 'files'
-
-
-    # read the trajectories in and determine the trajectory lifetimes and transition counts
+    # read the trajectories in to determine the trajectory lifetimes and transition counts
     processor = functools.partial(process_trajectory, ranges)
-    pool      = fax.Pool(nprocs=nprocs)
+    pool      = fax.Pool(nprocs)
     project   = fax.load_project(fahroot, pool=pool, coalesce=True)
-    results   = fax.process_trajectories(project, processor, pool=pool, nprocs=nprocs)
+    results   = fax.process_trajectories(project, processor, pool=pool)
 
     # compute lifetimes and update transition counts matrix
     Ts = np.zeros(len(ranges))

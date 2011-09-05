@@ -95,7 +95,7 @@ class Project(object):
 def merge_projects(proj1, proj2):
     """
     Update proj1 with the data in proj2
-    WARNING: this modifes the state proj1
+    WARNING: Statefull: this modifes the state of proj1
     """
 
     for run,rundata in proj2.projdata.iteritems():
@@ -150,12 +150,12 @@ def load_project(root, pool=None, coalesce=False):
     @param root:
         The root to the analysis directory. For example, given a file analysis/rmsd/C-alpha/RUN1234/CLONE4567/GEN4242.dat, root would be 'analysis/rmsd/C-alpha'
     @param pool:
-        The pool of processors to use. By default a new one is created using multiprocessor.Pool(nprocs) and destroyed on completion, unless one is provided.
+        The pool of processors to use. By default a new *Pool* is created and destroyed on completion, unless one is provided.
     @param coalesce:
         Coalesce the project trajectories.
 
     @return project:
-        The coalesced project.
+        The *Project* instances.
 
     """
 
