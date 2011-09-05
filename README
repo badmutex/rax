@@ -1,0 +1,44 @@
+
+Description
+===========
+
+This python modules provides wrappers for dealing with Folding@Home/Folding@Work (FaH/FaW) style analysis results.
+It provides classes and methods abstracting the reading and manipulation of the raw data to make the higher level analysis easier.
+
+Data must be organized using a specific directory structure and file:
+Each FaH/FaW generation should have a corresponding comma-separated-file storing the run, clone, generation, frame, and analysis value:
+
+    path/to/root/RUN0000/CLONE0001/GEN0002.dat
+
+For example:
+
+    $ head -4 analysis/rmsd/C-alpha/RUN1234/CLONE4567/GEN4242.dat
+	1234,4567,4242,0,0.935594
+	1234,4567,4242,1,0.919145
+	1234,4567,4242,2,0.918547
+	1234,4567,4242,3,0.934575
+
+
+Example usage
+=============
+
+Given a directory such as 'analysis/rmsd/C-alpha/RUN*/CLONE*/GEN*.dat, one could write something like the following:
+
+ import fax
+ 
+ root	= 'analysis/rmsd/C-alpha'
+ ncores	= 42
+ pool	= fax.start_pool(42)
+ 
+ # read in the data using 42 cores
+ project = fax.load_project(root, pool=pool)
+ 
+ # a function to process each trajectory
+ def my_analysis(traj):
+ 	return "magic result"
+ 
+ # get the results
+ results = fax.process_trajectories(project, my_analysis, pool=pool)
+ 
+ # finish up
+ fax.terminate_pool(pool)
