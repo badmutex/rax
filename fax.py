@@ -108,11 +108,11 @@ def merge_projects(proj1, proj2):
 
 
 class Pool(object):
-    def __init__(self, **kws):
-        self.nprocs = kws.get('processes', 1)
+    def __init__(self, processes=None, initializer=None, initargs=(), maxtasksperchild=None):
+        self.nprocs = processes or 1
 
         if not self.nprocs == 1:
-            self.pool = multiproc.Pool(**kws)
+            self.pool = multiproc.Pool(processes=processes, initializer=initializer, initargs=initargs, maxtasksperchild=maxtasksperchild)
         else:
             self.pool = None
 
@@ -124,9 +124,9 @@ class Pool(object):
 
     def finish(self):
         if not self.pool is None:
-            pool.close()
-            pool.join()
-            pool.terminate()
+            self.pool.close()
+            self.pool.join()
+            self.pool.terminate()
 
 
 
