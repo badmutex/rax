@@ -28,7 +28,7 @@ Given a directory such as 'analysis/rmsd/C-alpha/RUN*/CLONE*/GEN*.dat, one could
  
  root	= 'analysis/rmsd/C-alpha'
  ncores	= 42
- pool	= fax.start_pool(42)
+ pool	= fax.Pool(ncores)
  
  # read in the data using 42 cores
  project = fax.load_project(root, pool=pool)
@@ -41,4 +41,4 @@ Given a directory such as 'analysis/rmsd/C-alpha/RUN*/CLONE*/GEN*.dat, one could
  results = fax.process_trajectories(project, my_analysis, pool=pool)
  
  # finish up
- fax.terminate_pool(pool)
+ pool.finish()
