@@ -5,6 +5,7 @@ import multiprocessing as multiproc
 import glob
 import os
 import itertools
+import functools
 
 class Trajectory(object):
     def __init__(self, run, clone):
@@ -64,9 +65,9 @@ class Project(object):
             self.projdata[run] = dict()
 
         if clone not in self.projdata[run]:
-            self.projdata[run] = Trajectory(run, clone)
+            self.projdata[run][clone] = Trajectory(run, clone)
 
-        self.projdata[run][clone].add_generation(gen, traj)
+        self.projdata[run][clone].add_generation(gen, data)
 
 
     def get_trajectory(self, run, clone, coalesce=False):
@@ -97,7 +98,7 @@ def merge_projects(proj1, proj2):
     WARNING: this modifes the state proj1
     """
 
-    for run,rundata in proj2.data.iteritems():
+    for run,rundata in proj2.projdata.iteritems():
         for clone, clonedata in rundata.iteritems():
             for gen, gendata in clonedata.data.iteritems():
                 proj1.add_generation(run, clone, gen, gendata)
@@ -105,29 +106,53 @@ def merge_projects(proj1, proj2):
 
 
 
-def start_pool(nprocs=None):
-    if nprocs is None or 0:
-        nprocs = multiproc.cpu_count()
 
-    pool = multiproc.Pool(nprocs)
-    return pool
+class Pool(object):
+    def __init__(self, **kws):
+        self.nprocs = kws.get('processes', 1)
 
-def terminate_pool(pool):
-    pool.join()
-    pool.close()
-    pool.terminate()
+        if not self.nprocs == 1:
+            self.pool = multiproc.Pool(**kws)
+        else:
+            self.pool = None
+
+    def map(self, func, iterable, chunksize=1):
+        if self.nprocs == 1:
+            return itertools.imap(func, iterable)
+        else:
+            return self.pool.map(func, iterable, chunksize)
+
+    def finish(self):
+        if not self.pool is None:
+            pool.close()
+            pool.join()
+            pool.terminate()
 
 
-def load_project(root, nprocs=None, pool=None, coalesce=False, verbose=True):
+
+def load_project_processor(path):
+    print 'Processing', path
+
+    data  = np.loadtxt(path, delimiter=',', unpack=True)
+    run   = data[0,0].astype(int)
+    clone = data[1,0].astype(int)
+    gen   = data[2,0].astype(int)
+    proj  = Project()
+    proj.add_generation(run, clone, gen, data[-1])
+    return proj
+
+
+
+def load_project(root, pool=None, coalesce=False):
     """
     Reads the data into a Project object.
 
     @param root:
         The root to the analysis directory. For example, given a file analysis/rmsd/C-alpha/RUN1234/CLONE4567/GEN4242.dat, root would be 'analysis/rmsd/C-alpha'
-    @param nprocs:
-        The number of processors to use (default = number of processors on the machine). If this is 1, itertools.imap is used to apply *fn*, otherwise a multiprocessor.Pool is used.
     @param pool:
-        The pool of processors to use. By default a new one is created using multiprocessor.Pool(nprocs) and destroyed on completion, unless one is provided. 
+        The pool of processors to use. By default a new one is created using multiprocessor.Pool(nprocs) and destroyed on completion, unless one is provided.
+    @param coalesce:
+        Coalesce the project trajectories.
 
     @return project:
         The coalesced project.
@@ -137,28 +162,13 @@ def load_project(root, nprocs=None, pool=None, coalesce=False, verbose=True):
 
     data_itr = glob.iglob(os.path.join(root,'RUN*','CLONE*','GEN*.dat'))
 
-    def processor(path):
-        if verbose:
-            print 'Processing', path
-
-        data  = np.loadtxt(path, delimiter=',', unpack=True)
-        run   = data[0,0]
-        clone = data[1,0]
-        gen   = data[2,0]
-        proj  = Project()
-        proj.add_geneartion(run, clone, gen, data[-1])
-        return proj
-
-    if nprocs == 1:
-        return itertools.imap(processor, data_iter)
-
 
     if pool is None:
-        mypool = start_pool(nprocs)
+        mypool = Pool()
     else:
         mypool = pool
 
-    projects = mypool.map(process, data_itr)
+    projects = mypool.map(load_project_processor, data_itr)
     project  = reduce(merge_projects, projects, Project())
 
     if coalesce:
@@ -166,28 +176,32 @@ def load_project(root, nprocs=None, pool=None, coalesce=False, verbose=True):
 
 
     if pool is None:
-        terminate_pool(pool)
+        pool.finish()
 
 
     return project
 
 
+def process_trajectories_processor(fn, traj):
+    print 'Processing R %d C %d' % (traj.run, traj.clone)
+    return fn(traj)
+
+
+
 def process_trajectories(proj, fn, nprocs=None, pool=None, verbose=True):
 
+    func = functools.partial(process_trajectories_processor, fn)
+
+    processor = None
 
     if pool is None:
-        mypool = start_pool(nprocs)
+        mypool = Pool()
     else:
         mypool = pool
 
-    def traj_processor(traj):
-        if verbose:
-            print 'Processing R %d C %d' % (traj.run, traj.clone)
-        return fn(traj)
-
-    results = mypool.map(processor, proj.get_trajectories())
+    results = mypool.map(func, proj.get_trajectories())
 
     if pool is None:
-        terminate_pool(mypool)
+        mypool.finish()
 
     return results
