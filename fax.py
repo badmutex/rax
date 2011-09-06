@@ -7,6 +7,29 @@ import os
 import itertools
 import functools
 
+class Pool(object):
+    def __init__(self, processes=None, initializer=None, initargs=(), maxtasksperchild=None):
+        self.nprocs = processes or 1
+
+        if not self.nprocs == 1:
+            self.pool = multiproc.Pool(processes=processes, initializer=initializer, initargs=initargs, maxtasksperchild=maxtasksperchild)
+        else:
+            self.pool = None
+
+    def map(self, func, iterable, chunksize=1):
+        if self.nprocs == 1:
+            return itertools.imap(func, iterable)
+        else:
+            return self.pool.map(func, iterable, chunksize)
+
+    def finish(self):
+        if not self.pool is None:
+            self.pool.close()
+            self.pool.join()
+            self.pool.terminate()
+
+
+
 class Trajectory(object):
     def __init__(self, run, clone):
         self.run       = run
@@ -43,6 +66,14 @@ class Trajectory(object):
                         vals.append(v)
             A = np.array(vals)
             self.coalesced = A
+
+
+    def get_generations(self):
+        for gen in sorted(self.data.keys()):
+            yield gen
+
+    def get_generation_data(self, gen):
+        return self.data[gen]
 
 
     def get_trajectory_data(self, keeplast=False):
@@ -91,6 +122,31 @@ class Project(object):
         """
         merge_projects(self, proj)
 
+    def write(self, root, pool=Pool(processes=1)):
+
+        for run, rundata in self.projdata.iteritems():
+            for clone, traj in rundata.iteritems():
+                dirname = os.path.join(root, 'RUN%04d' % run, 'CLONE%04d' % clone)
+                if not os.path.exists(dirname):
+                    os.makedirs(dirname)
+
+                # force evaluation
+                list(pool.map(functools.partial(_save_gen, dirname, traj), traj.get_generations()))
+
+
+def _save_gen(dirname, traj, gen):
+    path = os.path.join(dirname, 'GEN%04d.dat' % gen)
+    run = traj.run
+    clone = traj.clone
+    data = traj.get_generation_data(gen)
+    print 'Saving', path
+    with open(path, 'w') as fd:
+        for ix, value in enumerate(data):
+            fd.write('%(run)d,%(clone)d,%(gen)d,%(frame)d,%(data)s\n' % {
+                    'run':run, 'clone':clone, 'gen':gen, 'frame':ix, 'data':data[ix]})
+
+
+
 
 def merge_projects(proj1, proj2):
     """
@@ -107,31 +163,8 @@ def merge_projects(proj1, proj2):
 
 
 
-class Pool(object):
-    def __init__(self, processes=None, initializer=None, initargs=(), maxtasksperchild=None):
-        self.nprocs = processes or 1
-
-        if not self.nprocs == 1:
-            self.pool = multiproc.Pool(processes=processes, initializer=initializer, initargs=initargs, maxtasksperchild=maxtasksperchild)
-        else:
-            self.pool = None
-
-    def map(self, func, iterable, chunksize=1):
-        if self.nprocs == 1:
-            return itertools.imap(func, iterable)
-        else:
-            return self.pool.map(func, iterable, chunksize)
-
-    def finish(self):
-        if not self.pool is None:
-            self.pool.close()
-            self.pool.join()
-            self.pool.terminate()
-
-
-
 def load_project_processor(path):
-    print 'Processing', path
+    print 'Loading', path
 
     data  = np.loadtxt(path, delimiter=',', unpack=True)
     run   = data[0,0].astype(int)
@@ -143,7 +176,7 @@ def load_project_processor(path):
 
 
 
-def load_project(root, pool=None, coalesce=False):
+def load_project(root, pool=None, coalesce=False, chunksize=None):
     """
     Reads the data into a Project object.
 
@@ -188,7 +221,7 @@ def process_trajectories_processor(fn, traj):
 
 
 
-def process_trajectories(proj, fn, nprocs=None, pool=None, verbose=True):
+def process_trajectories(proj, fn, nprocs=None, pool=None, verbose=True, chunksize=1):
 
     func = functools.partial(process_trajectories_processor, fn)
 
@@ -199,7 +232,7 @@ def process_trajectories(proj, fn, nprocs=None, pool=None, verbose=True):
     else:
         mypool = pool
 
-    results = mypool.map(func, proj.get_trajectories())
+    results = mypool.map(func, proj.get_trajectories(), chunksize=chunksize)
 
     if pool is None:
         mypool.finish()
