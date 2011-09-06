@@ -123,6 +123,13 @@ class Project(object):
         merge_projects(self, proj)
 
     def write(self, root, pool=Pool(processes=1)):
+        """
+        Write the project out to a root directory.
+        This creates the root/RUNXXXX/CLONEYYYY/GENZZZZ.dat files.
+
+        @param root: the root under which the RUN/CLONE/GEN files will be created
+        @param pool: The *Pool* to used (default with 1 processor)
+        """
 
         for run, rundata in self.projdata.iteritems():
             for clone, traj in rundata.iteritems():
@@ -135,10 +142,10 @@ class Project(object):
 
 
 def _save_gen(dirname, traj, gen):
-    path = os.path.join(dirname, 'GEN%04d.dat' % gen)
-    run = traj.run
+    path  = os.path.join(dirname, 'GEN%04d.dat' % gen)
+    run   = traj.run
     clone = traj.clone
-    data = traj.get_generation_data(gen)
+    data  = traj.get_generation_data(gen)
     print 'Saving', path
     with open(path, 'w') as fd:
         for ix, value in enumerate(data):
