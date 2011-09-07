@@ -30,6 +30,7 @@ class Pool(object):
 
 
 
+
 class Trajectory(object):
     def __init__(self, run, clone):
         self.run       = run
@@ -56,7 +57,9 @@ class Trajectory(object):
 
         if self.coalesced is None:
             vals = list()
+            print 'Coalescing R%dC%d' % (self.run, self.clone),
             for k in sorted(self.data.iterkeys()):
+                print 'G%d' % k,
                 data = self.data[k]
                 n = data.size
                 for i, v in enumerate(data):
@@ -64,6 +67,7 @@ class Trajectory(object):
                         vals.append(v)
                     elif not keeplast:
                         vals.append(v)
+            print
             A = np.array(vals)
             self.coalesced = A
 
@@ -85,6 +89,9 @@ class Trajectory(object):
             self.coalesce(keeplast=keeplast)
         return self.coalesced
 
+    def __iter__(self):
+        data = self.get_trajectory_data()
+        return iter(data)
 
 
 class Project(object):
@@ -139,6 +146,12 @@ class Project(object):
 
                 # force evaluation
                 list(pool.map(functools.partial(_save_gen, dirname, traj), traj.get_generations()))
+
+    def savetxt(self, path, run, clone, keeplast=False, **kws):
+        traj = self.get_trajectory(run, clone)
+        data = traj.get_trajectory_data(keeplast=keeplast)
+        np.savetxt(path, data.transpose(), **kws)
+
 
 
 def _save_gen(dirname, traj, gen):
@@ -213,19 +226,34 @@ def load_project(root, runs=None, clones=None, gens=None, pool=None, coalesce=Fa
 
     def filter_rcg(paths, runs, clones, gens):
 
-        runsp   = map(lambda v: rcg_path_name('RUN', v)  , runs   or [])
-        clonesp = map(lambda v: rcg_path_name('CLONE', v), clones or [])
-        gensp   = map(lambda v: rcg_path_name('GEN', v)  , gens   or [])
+        runs   = runs   or []
+        clones = clones or []
+        gens   = gens   or []
+
+        runsp   = map(lambda v: rcg_path_name('RUN', v)  , runs)
+        clonesp = map(lambda v: rcg_path_name('CLONE', v), clones)
+        gensp   = map(lambda v: rcg_path_name('GEN', v)  , gens)
+
 
         for p in paths:
-            ok = True
-            for group in [runsp, clonesp, gensp]:
-                for pattern in group:
-                    if pattern not in p:
-                        ok = False
-                        break
-            if ok:
-                yield p
+
+            oks = [len(runs) < 1, len(clones) < 1, len(gens) < 1]
+            for pat in runsp:
+                if pat in p:
+                    oks[0] = True
+                    break
+
+            for pat in clonesp:
+                if pat in p:
+                    oks[1] = True
+                    break
+
+            for pat in gensp:
+                if pat in p:
+                    oks[2] = True
+                    break
+
+            if all(oks): yield p
 
 
     myglob   = os.path.join(root, 'RUN*', 'CLONE*', 'GEN*.dat')
