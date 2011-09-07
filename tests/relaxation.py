@@ -72,7 +72,7 @@ if __name__ == '__main__':
     # read the trajectories in to determine the trajectory lifetimes and transition counts
     processor = functools.partial(process_trajectory, ranges)
     pool      = fax.Pool(nprocs)
-    project   = fax.load_project(fahroot, pool=pool, coalesce=True)
+    project   = fax.load_project(fahroot, runs=[0], pool=pool, coalesce=True)
     results   = fax.process_trajectories(project, processor, pool=pool)
 
     # compute lifetimes and update transition counts matrix

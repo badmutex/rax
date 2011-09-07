@@ -133,7 +133,7 @@ class Project(object):
 
         for run, rundata in self.projdata.iteritems():
             for clone, traj in rundata.iteritems():
-                dirname = os.path.join(root, 'RUN%04d' % run, 'CLONE%04d' % clone)
+                dirname = os.path.join(root, rcg_path_name('RUN',run), rcg_path_name('CLONE',clone))
                 if not os.path.exists(dirname):
                     os.makedirs(dirname)
 
@@ -142,7 +142,7 @@ class Project(object):
 
 
 def _save_gen(dirname, traj, gen):
-    path  = os.path.join(dirname, 'GEN%04d.dat' % gen)
+    path  = os.path.join(dirname, rcg_path_name('GEN', gen) +'.dat')
     run   = traj.run
     clone = traj.clone
     data  = traj.get_generation_data(gen)
@@ -182,8 +182,12 @@ def load_project_processor(path):
     return proj
 
 
+def rcg_path_name(name, value):
+    return '%s%04d' % (name, value)
 
-def load_project(root, pool=None, coalesce=False, chunksize=None):
+
+
+def load_project(root, runs=None, clones=None, gens=None, pool=None, coalesce=False, chunksize=None):
     """
     Reads the data into a Project object.
 
@@ -194,13 +198,39 @@ def load_project(root, pool=None, coalesce=False, chunksize=None):
     @param coalesce:
         Coalesce the project trajectories.
 
+    @param runs:
+        Optional keyword. a list of runs to load
+    @param clones:
+        Optional keyword: a list of clones to load
+    @param gens:
+        Optional keyword: a list of generations to load
+
     @return project:
         The *Project* instances.
 
     """
 
 
-    data_itr = glob.iglob(os.path.join(root,'RUN*','CLONE*','GEN*.dat'))
+    def filter_rcg(paths, runs, clones, gens):
+
+        runsp   = map(lambda v: rcg_path_name('RUN', v)  , runs   or [])
+        clonesp = map(lambda v: rcg_path_name('CLONE', v), clones or [])
+        gensp   = map(lambda v: rcg_path_name('GEN', v)  , gens   or [])
+
+        for p in paths:
+            ok = True
+            for group in [runsp, clonesp, gensp]:
+                for pattern in group:
+                    if pattern not in p:
+                        ok = False
+                        break
+            if ok:
+                yield p
+
+
+    myglob   = os.path.join(root, 'RUN*', 'CLONE*', 'GEN*.dat')
+    data_itr = glob.iglob(myglob)
+    data_itr = filter_rcg(data_itr, runs, clones, gens)
 
 
     if pool is None:
