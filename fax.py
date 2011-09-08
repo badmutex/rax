@@ -180,7 +180,7 @@ class Project(object):
         """
         Add the data in *proj* to the current project
         """
-        merge_projects(self, proj)
+        _merge_projects(self, proj)
 
     def write(self, root, pool=Pool(processes=1)):
         """
@@ -225,7 +225,7 @@ def _save_gen(dirname, traj, gen):
 
 
 
-def merge_projects(proj1, proj2):
+def _merge_projects(proj1, proj2):
     """
     Update proj1 with the data in proj2
     WARNING: Statefull: this modifes the state of proj1
@@ -240,7 +240,7 @@ def merge_projects(proj1, proj2):
 
 
 
-def load_project_processor(path):
+def _load_project_processor(path):
     log_debug('Loading %s' % path)
 
     data  = np.loadtxt(path, delimiter=',', unpack=True)
@@ -328,10 +328,10 @@ def load_project(root, runs=None, clones=None, gens=None, pool=None, coalesce=Fa
         mypool = pool
 
     log_info('Loading data')
-    projects = mypool.map(load_project_processor, data_itr)
+    projects = mypool.map(_load_project_processor, data_itr)
 
     log_info('Accumulating project data')
-    project  = reduce(merge_projects, projects, Project())
+    project  = reduce(_merge_projects, projects, Project())
 
     if coalesce:
         log_info('Coalescing project')
@@ -346,7 +346,7 @@ def load_project(root, runs=None, clones=None, gens=None, pool=None, coalesce=Fa
     return project
 
 
-def process_trajectories_processor(fn, traj):
+def _process_trajectories_processor(fn, traj):
     log_debug('Processing R %d C %d' % (traj.run, traj.clone))
     return fn(traj)
 
@@ -354,7 +354,7 @@ def process_trajectories_processor(fn, traj):
 
 def process_trajectories(proj, fn, nprocs=None, pool=None, verbose=True, chunksize=1):
 
-    func = functools.partial(process_trajectories_processor, fn)
+    func = functools.partial(_process_trajectories_processor, fn)
 
     processor = None
 
