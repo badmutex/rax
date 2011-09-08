@@ -73,8 +73,10 @@ class Pool(object):
 
     def map(self, func, iterable, chunksize=1):
         if self.nprocs == 1:
+            log_info('Pool: mapping using single processor')
             return itertools.imap(func, iterable)
         else:
+            log_info('Pool: mapping using %d processors' % self.nprocs)
             return self.pool.map(func, iterable, chunksize)
 
     def finish(self):
