@@ -6,6 +6,61 @@ import glob
 import os
 import itertools
 import functools
+import logging
+
+
+
+def _setup_logger():
+    logformat = '%(asctime)s %(module)s %(levelname)s %(message)s'
+    logger    = logging.getLogger(__name__)
+    logger.setLevel(logging.INFO)
+    handler   = logging.StreamHandler()
+    handler.setLevel(logging.DEBUG)
+    formatter = logging.Formatter(logformat)
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+
+    return logger
+
+_LOGGER = _setup_logger()
+
+
+
+
+def set_logging_level(lvl):
+    """
+    Set the logging level.
+
+    @param lvl: a logging level from the logging module
+
+    Example:
+        import fax
+        import logging
+        fax.set_logging_level(logging.DEBUG)
+    """
+    global _LOGGER
+    _LOGGER.setLevel(lvl)
+
+
+def _log_message(lvl, msg, *args, **kws):
+    global _LOGGER
+    _LOGGER.log(lvl, msg, *args, **kws)
+
+def log_debug(*args, **kws):
+    _log_message(logging.DEBUG, *args, **kws)
+
+def log_info(*args, **kws):
+    _log_message(logging.INFO, *args, **kws)
+
+def log_warning(*args, **kws):
+    _log_message(logging.WARNING, *args, **kws)
+
+def log_error(*args, **kws):
+    _log_message(logging.ERROR, *args, **kws)
+
+def log_critical(*args, **kws):
+    _log_message(logging.CRITICAL, *args, **kws)
+
 
 class Pool(object):
     def __init__(self, processes=None, initializer=None, initargs=(), maxtasksperchild=None):
@@ -57,9 +112,8 @@ class Trajectory(object):
 
         if self.coalesced is None:
             vals = list()
-            print 'Coalescing R%dC%d' % (self.run, self.clone),
             for k in sorted(self.data.iterkeys()):
-                print 'G%d' % k,
+                log_debug('Coalescing R%dC%dG%d' % (self.run, self.clone, k))
                 data = self.data[k]
                 n = data.size
                 for i, v in enumerate(data):
@@ -67,7 +121,6 @@ class Trajectory(object):
                         vals.append(v)
                     elif not keeplast:
                         vals.append(v)
-            print
             A = np.array(vals)
             self.coalesced = A
 
@@ -138,6 +191,8 @@ class Project(object):
         @param pool: The *Pool* to used (default with 1 processor)
         """
 
+        log_info('Saving project under %s' % root)
+
         for run, rundata in self.projdata.iteritems():
             for clone, traj in rundata.iteritems():
                 dirname = os.path.join(root, rcg_path_name('RUN',run), rcg_path_name('CLONE',clone))
@@ -148,6 +203,8 @@ class Project(object):
                 list(pool.map(functools.partial(_save_gen, dirname, traj), traj.get_generations()))
 
     def savetxt(self, path, run, clone, keeplast=False, **kws):
+        log_info('Saving trajectory to %s' % path)
+
         traj = self.get_trajectory(run, clone)
         data = traj.get_trajectory_data(keeplast=keeplast)
         np.savetxt(path, data.transpose(), **kws)
@@ -159,7 +216,7 @@ def _save_gen(dirname, traj, gen):
     run   = traj.run
     clone = traj.clone
     data  = traj.get_generation_data(gen)
-    print 'Saving', path
+    log_debug('Saving %s' % path)
     with open(path, 'w') as fd:
         for ix, value in enumerate(data):
             fd.write('%(run)d,%(clone)d,%(gen)d,%(frame)d,%(data)s\n' % {
@@ -184,7 +241,7 @@ def merge_projects(proj1, proj2):
 
 
 def load_project_processor(path):
-    print 'Loading', path
+    log_debug('Loading %s' % path)
 
     data  = np.loadtxt(path, delimiter=',', unpack=True)
     run   = data[0,0].astype(int)
@@ -256,24 +313,33 @@ def load_project(root, runs=None, clones=None, gens=None, pool=None, coalesce=Fa
             if all(oks): yield p
 
 
+    log_info('Searching for data in %s' % root)
+
     myglob   = os.path.join(root, 'RUN*', 'CLONE*', 'GEN*.dat')
     data_itr = glob.iglob(myglob)
     data_itr = filter_rcg(data_itr, runs, clones, gens)
 
 
     if pool is None:
+        log_debug('Creating Pool')
         mypool = Pool()
     else:
+        log_debug('Using provided Pool')
         mypool = pool
 
+    log_info('Loading data')
     projects = mypool.map(load_project_processor, data_itr)
+
+    log_info('Accumulating project data')
     project  = reduce(merge_projects, projects, Project())
 
     if coalesce:
+        log_info('Coalescing project')
         project.coalesce()
 
 
     if pool is None:
+        log_debug('Finishing with Pool')
         pool.finish()
 
 
@@ -281,7 +347,7 @@ def load_project(root, runs=None, clones=None, gens=None, pool=None, coalesce=Fa
 
 
 def process_trajectories_processor(fn, traj):
-    print 'Processing R %d C %d' % (traj.run, traj.clone)
+    log_debug('Processing R %d C %d' % (traj.run, traj.clone))
     return fn(traj)
 
 
@@ -293,13 +359,17 @@ def process_trajectories(proj, fn, nprocs=None, pool=None, verbose=True, chunksi
     processor = None
 
     if pool is None:
+        log_debug('Creating Pool')
         mypool = Pool()
     else:
+        log_debug('Using provided Pool')
         mypool = pool
 
+    log_info('Processing trajectories')
     results = mypool.map(func, proj.get_trajectories(), chunksize=chunksize)
 
     if pool is None:
+        log_debug('Finishing with Pool')
         mypool.finish()
 
     return results
