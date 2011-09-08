@@ -11,9 +11,11 @@ import glob
 import os
 import sys
 import functools
+import itertools
+import logging
 
 
-def choose_state(v, ranges):
+def choose_state(ranges, v):
     for s, (min_exc, max_inc) in enumerate(ranges):
         if min_exc < v <= max_inc:
             return s
@@ -22,35 +24,44 @@ def choose_state(v, ranges):
 
 
 def process_trajectory(ranges, traj):
+    data = traj.get_trajectory_data()
+    assignments = itertools.imap(functools.partial(choose_state, ranges), data)
+    N = np.zeros((len(ranges),len(ranges)), dtype=int)
+
+    assignments = np.array(map(functools.partial(choose_state, ranges), data), dtype=int)
+
+    T = dict()
+    for r in xrange(len(ranges)):
+        T[r] = list()
+    lifetime = 1
+
+    for i in xrange(len(data) - 1):
+        j = i + 1
+        s,t = assignments[i], assignments[j]
+        N[s,t] += 1
+
+        if s == t:
+            lifetime += 1
+        else:
+            T[s].append(lifetime)
+            lifetime = 1
+
+    return traj.run, traj.clone, T, N
+
+def assignments(ranges, traj):
     run   = traj.run
     clone = traj.clone
     data  = traj.get_trajectory_data()
 
-    N = sps.lil_matrix((len(ranges), len(ranges)), dtype=np.uint)
-    R = len(ranges)
+    return map(functools.partial(choose_state, ranges), data)
 
-    T = dict()
-    for r in xrange(R):
-        T[r] = list()
-    life = 0
 
-    for i in xrange(data.size - 1):
-        j = i + 1
-        v1, v2 = data[i], data[j]
+def mixs2d(M):
+    a,b = M.shape
+    for i in xrange(a):
+        for j in xrange(b):
+            yield i,j
 
-        s, t = map(lambda v: choose_state(v, ranges), (v1,v2))
-        N[s, t] += 1
-
-        if s == t:
-            life += 1
-        elif life > 0:
-            T[s].append(life)
-            life = 0
-
-    T[s].append(life)
-    return T, N
-        
-    
 
 
 if __name__ == '__main__':
@@ -58,31 +69,48 @@ if __name__ == '__main__':
     fahroot    = sys.argv[1]
     nprocs     = int(sys.argv[2])
     outfreq_ns = float(sys.argv[3])
-    mtxfile    = sys.argv[4]
+    outfile    = sys.argv[4]
     groups     = sys.argv[5:]
     ranges     = map(lambda g: map(float, g.split(':')), groups)
 
 
+    fax.set_logging_level(logging.INFO)
+
+
     # transition count matrix
-    N = sps.lil_matrix((len(ranges),len(ranges)), dtype=np.uint)
+    N = np.zeros((len(ranges),len(ranges)), dtype=int)
 
     # average lifetimes
     T = np.zeros(len(ranges))
 
+    runs = None
+    clones = None
+
     # read the trajectories in to determine the trajectory lifetimes and transition counts
     processor = functools.partial(process_trajectory, ranges)
     pool      = fax.Pool(nprocs)
-    project   = fax.load_project(fahroot, runs=[0], pool=pool, coalesce=True)
+    project   = fax.load_project(fahroot, runs=runs, clones=clones, pool=pool, coalesce=True)
     results   = fax.process_trajectories(project, processor, pool=pool)
 
+
+    # # save the assignments
+    # assignments = fax.process_trajectories(project, functools.partial(assignments, ranges), pool=pool)
+    # np.savetxt(outfile, assignments[0], fmt='%d')
+    # project.savetxt('test.dat', run, clone, fmt='%f')
+    # sys.exit(1)
+
     # compute lifetimes and update transition counts matrix
+
     Ts = np.zeros(len(ranges))
-    for ts, M in results:
+    for run, clone, ts, M in results:
         N = N + M
         for s, lifes in ts.iteritems():
+            lifes = filter(lambda x: x > 1, lifes)
             T[s] += sum(lifes)
             Ts[s] += len(lifes)
-    T = T / Ts
+
+    for i in xrange(len(Ts)):
+        T[i] = T[i] / Ts[i]
 
     print 'N'
     print N
@@ -90,38 +118,49 @@ if __name__ == '__main__':
     print T
 
     # symetrize the transition count matrix
-    N = N + N.transpose() - np.diag(N.diagonal())
+    # the diagonal should be 0
+    N = N + N.T - 2*np.diag(N.diagonal())
 
     print 'N_sym'
     print N
 
-    print 'eigenvalues'
-    print linalg.eigvalsh(N)
+    # compute the rates
+    K = np.zeros((len(ranges),len(ranges)))
 
-
-    K = sps.dok_matrix((len(ranges),len(ranges)))
-    N = sps.dok_matrix(N)
-
-    for i, j in N.iterkeys():
-        num = N[i,j]
-        denom = T[i] * N[i,:].sum()
-        k = num / denom
-
-        K[i,j] = outfreq_ns / k
+    for i, j in mixs2d(N):
+        k = 0
+        if not i == j:
+            num = N[i,j]
+            denom = T[i] * N[i, :].sum()
+            k = num / denom
+        else:
+           k = -1/T[i]
+        K[i,j] = k
+    
 
     print 'K:'
     print K
 
+    print 'eigenvalues(K)'
+    eigvals = linalg.eigvals(K)
+    print eigvals
+
+    R = outfreq_ns / K
+
     print 'Exchanges'
-    for i,j in sorted(K .iterkeys()):
-        mi, Mi = ranges[i]
-        mj, Mj = ranges[j]
+    with open(outfile, 'w') as fd:
+        fd.write('Eigenvalues = %s\n' % ', '.join(map(str, eigvals)))
+        for i,j in mixs2d(R):
+            if i <= j: continue
 
-        print '%5s (%4s,%4s] %5s %5s (%4s,%4s]: %f' % (i, mi, Mi, '->', j, mj, Mj, K[i,j])
+            fd.write('Exchange = %s %s %s ns\n' % (i, j, R[i,j]))
+
+            mi, Mi = ranges[i]
+            mj, Mj = ranges[j]
+
+            print '%5s (%4s,%4s] %5s %5s (%4s,%4s]: %f' % (i, mi, Mi, '->', j, mj, Mj, R[i,j] / 10.**3)
 
 
-    print 'Saving', mtxfile
-    sio.mmwrite(mtxfile, K)
 
     pool.finish()
 
