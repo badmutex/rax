@@ -31,7 +31,7 @@ def set_logging_level(lvl):
     """
     Set the logging level.
 
-    @param lvl: a logging level from the logging module
+    @param lvl (logging.LEVEL): a logging level from the logging module
 
     Example:
         import fax
@@ -72,6 +72,16 @@ class Pool(object):
             self.pool = None
 
     def map(self, func, iterable, chunksize=1, force=False):
+        """
+        Map a function over the iterable.
+
+        @param func (function): the function to apply
+        @param iterable (anything implementing __iter__()): the sequence of values
+        @param chunksize=1 (int): the chunksize when using multiple processors
+        @param force=False (boolean): force evaluation of the result when using single processor, otherwise (default) use lazy paradigm
+
+        @return (list or generator): a list (nprocs > 1 or force == True) or a generator (nprocs == 1) of values from applying the function to the iterable
+        """
         if self.nprocs == 1:
             log_info('Pool: mapping using single processor')
             generator = itertools.imap(func, iterable)
@@ -84,6 +94,9 @@ class Pool(object):
             return self.pool.map(func, iterable, chunksize)
 
     def finish(self):
+        """
+        Clear up the pool if using multiple processors
+        """
         if not self.pool is None:
             self.pool.close()
             self.pool.join()
@@ -100,6 +113,13 @@ class Trajectory(object):
         self.coalesced = None
 
     def add_generation(self, gen, data):
+        """
+        Add data for a generation
+
+        @param gen (int): The generation for which the data corresponds to.
+        @param data (one dimensional numpy.array). The values for this generation
+        """
+
         if gen in self.data:
             raise ValueError, 'Generation %s already exists in trajectory R%dC%d' % (gen, self.run, self.clone)
 
@@ -112,8 +132,7 @@ class Trajectory(object):
         """
         Merge the generation data into a single numpy array.
 
-        @param keeplast=False
-            Keep the last frame of each generation, otherwise (default) ignore it.
+        @param keeplast=False (boolean): Keep the last frame of each generation, otherwise (default) ignore it.
         """
 
         if self.coalesced is None:
@@ -132,6 +151,11 @@ class Trajectory(object):
 
 
     def get_generations(self):
+        """
+        Iterate over the generations.
+
+        @return (generator): a generator over the trajectories in the project
+        """
         for gen in sorted(self.data.keys()):
             yield gen
 
@@ -141,7 +165,9 @@ class Trajectory(object):
 
     def get_trajectory_data(self, keeplast=False):
         """
-        returns a numpy.array of the coalesced trajectory
+        Get the numpy.array of the coalesced trajectory
+
+        @return (numpy.array): The (optionally coalesced) data for the trajectory.
         """
 
         if self.coalesced is None:
@@ -158,6 +184,15 @@ class Project(object):
         self.projdata = dict()
     
     def add_generation(self, run, clone, gen, data):
+        """
+        Add data for a generation. Create the Trajectory if needed.
+
+        @param run (int)
+        @param clone (int)
+        @param gen (int)
+        @param data (one-dimensional numpy.array)
+        """
+
         if run not in self.projdata:
             self.projdata[run] = dict()
 
@@ -168,23 +203,46 @@ class Project(object):
 
 
     def get_trajectory(self, run, clone, coalesce=False):
+        """
+        Ge the (optionally coalesced) Trajectory
+
+        @param run (int)
+        @param clone (int)
+        @param coalesce=False (boolean)
+
+        @return (Trajectory)
+        """
+        # TODO: coalesce should take keeplast keyword
         traj = self.projdata[run][clone]
         if coalesce:
             traj.coalesce()
         return traj
 
     def get_trajectories(self):
+        """
+        Get the sequence of the Trajectories in the Project
+
+        @return (generator over Trajectories)
+        """
+
         for rundata in self.projdata.itervalues():
             for traj in rundata.itervalues():
                 yield traj
 
     def coalesce(self, keeplast=False):
+        """
+        Coalesce the project
+
+        @param keeplast=False (boolean): keep the last frame of the generations
+        """
         for traj in self.get_trajectories():
             traj.coalesce(keeplast=keeplast)
 
     def merge(self, proj):
         """
         Add the data in *proj* to the current project
+
+        @param proj (Project): merge the Trajectories in *proj* into this Project
         """
         _merge_projects(self, proj)
 
@@ -193,8 +251,8 @@ class Project(object):
         Write the project out to a root directory.
         This creates the root/RUNXXXX/CLONEYYYY/GENZZZZ.dat files.
 
-        @param root: the root under which the RUN/CLONE/GEN files will be created
-        @param pool: The *Pool* to used (default with 1 processor)
+        @param root (string): the root under which the RUN/CLONE/GEN files will be created
+        @param pool=Pool(processes=1) (Pool): The *Pool* to used (default with 1 processor)
         """
 
         log_info('Saving project under %s' % root)
@@ -209,6 +267,16 @@ class Project(object):
                 list(pool.map(functools.partial(_save_gen, dirname, traj), traj.get_generations()))
 
     def savetxt(self, path, run, clone, keeplast=False, **kws):
+        """
+        Save a generation to a text file using numpy.savetxt
+
+        @param path (string): the path to save to
+        @param run (int)
+        @param clone (int)
+        @param keeplast=False (boolean): keep the frames between two generations when coalescing
+        @param kws: keywords to be passed to numpy.savetxt
+        """
+
         log_info('Saving trajectory to %s' % path)
 
         traj = self.get_trajectory(run, clone)
@@ -267,22 +335,14 @@ def load_project(root, runs=None, clones=None, gens=None, pool=None, coalesce=Fa
     """
     Reads the data into a Project object.
 
-    @param root:
-        The root to the analysis directory. For example, given a file analysis/rmsd/C-alpha/RUN1234/CLONE4567/GEN4242.dat, root would be 'analysis/rmsd/C-alpha'
-    @param pool:
-        The pool of processors to use. By default a new *Pool* is created and destroyed on completion, unless one is provided.
-    @param coalesce:
-        Coalesce the project trajectories.
+    @param root (string): The root to the analysis directory. For example, given a file analysis/rmsd/C-alpha/RUN1234/CLONE4567/GEN4242.dat, root would be 'analysis/rmsd/C-alpha'
+    @param pool=None (Pool): The pool of processors to use. By default a new *Pool* is created and destroyed on completion, unless one is provided.
+    @param coalesce=False (boolean): Coalesce the project trajectories.
+    @param runs=None (list of ints): list of runs to load
+    @param clones=None (list of ints):  a list of clones to load
+    @param gens=Nonen (list of ints):  a list of generations to load
 
-    @param runs:
-        Optional keyword. a list of runs to load
-    @param clones:
-        Optional keyword: a list of clones to load
-    @param gens:
-        Optional keyword: a list of generations to load
-
-    @return project:
-        The *Project* instances.
+    @return (Project)
 
     """
 
@@ -358,7 +418,18 @@ def _process_trajectories_processor(fn, traj):
 
 
 
+# TODO: remove obsoleete keywords
 def process_trajectories(proj, fn, nprocs=None, pool=None, verbose=True, chunksize=1):
+    """
+    Map a function over the *Trajectories* in a *Project*
+
+    @param proj (Project)
+    @param fn (Trajectory -> r: a function accepting a single argument of type *Trajectory*)
+    @param nprocs=None (int)
+    @param pool=None (Pool)
+
+    @return (sequence of r)
+    """
 
     func = functools.partial(_process_trajectories_processor, fn)
 
