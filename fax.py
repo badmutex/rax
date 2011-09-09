@@ -202,7 +202,7 @@ class Project(object):
         self.projdata[run][clone].add_generation(gen, data)
 
 
-    def get_trajectory(self, run, clone, coalesce=False):
+    def get_trajectory(self, run, clone, coalesce=False, keeplast=False):
         """
         Ge the (optionally coalesced) Trajectory
 
@@ -212,10 +212,9 @@ class Project(object):
 
         @return (Trajectory)
         """
-        # TODO: coalesce should take keeplast keyword
         traj = self.projdata[run][clone]
         if coalesce:
-            traj.coalesce()
+            traj.coalesce(keeplast=keeplast)
         return traj
 
     def get_trajectories(self):
@@ -388,7 +387,7 @@ def load_project(root, runs=None, clones=None, gens=None, pool=None, coalesce=Fa
 
     if pool is None:
         log_debug('Creating Pool')
-        mypool = Pool()
+        mypool = Pool(processors=1)
     else:
         log_debug('Using provided Pool')
         mypool = pool
@@ -418,14 +417,12 @@ def _process_trajectories_processor(fn, traj):
 
 
 
-# TODO: remove obsoleete keywords
-def process_trajectories(proj, fn, nprocs=None, pool=None, verbose=True, chunksize=1):
+def process_trajectories(proj, fn, pool=None):
     """
     Map a function over the *Trajectories* in a *Project*
 
     @param proj (Project)
     @param fn (Trajectory -> r: a function accepting a single argument of type *Trajectory*)
-    @param nprocs=None (int)
     @param pool=None (Pool)
 
     @return (sequence of r)
@@ -437,7 +434,7 @@ def process_trajectories(proj, fn, nprocs=None, pool=None, verbose=True, chunksi
 
     if pool is None:
         log_debug('Creating Pool')
-        mypool = Pool()
+        mypool = Pool(processors=1)
     else:
         log_debug('Using provided Pool')
         mypool = pool
