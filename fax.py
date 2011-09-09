@@ -71,10 +71,14 @@ class Pool(object):
         else:
             self.pool = None
 
-    def map(self, func, iterable, chunksize=1):
+    def map(self, func, iterable, chunksize=1, force=False):
         if self.nprocs == 1:
             log_info('Pool: mapping using single processor')
-            return itertools.imap(func, iterable)
+            generator = itertools.imap(func, iterable)
+            if force:
+                return list(generator)
+            else:
+                return generator
         else:
             log_info('Pool: mapping using %d processors' % self.nprocs)
             return self.pool.map(func, iterable, chunksize)
