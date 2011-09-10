@@ -68,6 +68,7 @@ def log_critical(*args, **kws):
 #                               Process pool                                   #
 ################################################################################
 
+
 class Pool(object):
     def __init__(self, processes=None, initializer=None, initargs=(), maxtasksperchild=None):
         self.nprocs = processes or 1
@@ -107,6 +108,46 @@ class Pool(object):
             self.pool.close()
             self.pool.join()
             self.pool.terminate()
+
+
+
+DEFAULT_POOL = Pool(processes=1)
+
+def setup_pool(processes):
+    """
+    Setup the default module-level process pool.
+
+    @param processes (int): the number of processors to use.
+
+    Example:
+     import fax
+     fax.setup_pool(42)
+     ...
+     project = fax.load_project(root)
+    """
+
+    global DEFAULT_POOL
+    DEFAULT_POOL = Pool(processes=process)
+
+
+def get_pool(pool):
+    """
+    Chooses between the module default Pool or the provided one if it is of type Pool
+
+    @param pool (Pool or anything): if type(pool) is Pool return pool else return DEFAULT_POOL
+    """
+
+    if type(pool) is Pool:
+        mypool = pool
+        log_debug('Using provided Pool(%s)' % mypool.nprocs)
+        return mypool
+    else:
+        global DEFAULT_POOL
+        mypool = DEFAULT_POOL
+        log_debug('Using default Pool(%s)' % mypool.nprocs)
+        return mypool
+
+
 
 ################################################################################
 #                        Abstractions over the data                            #
@@ -398,11 +439,12 @@ def load_project(root, runs=None, clones=None, gens=None, pool=None, coalesce=Fa
 
 
     if pool is None:
-        log_debug('Creating Pool')
-        mypool = Pool(processors=1)
+        global DEFAULT_POOL
+        mypool = DEFAULT_POOL
+        log_debug('Using default Pool(%s)' % mypool.nprocs)
     else:
-        log_debug('Using provided Pool')
         mypool = pool
+        log_debug('Using provided Pool(%s)' % mypool.nprocs)
 
     log_info('Loading data')
     projects = mypool.map(_load_project_processor, data_itr)
@@ -442,14 +484,15 @@ def process_trajectories(proj, fn, pool=None):
 
     func = functools.partial(_process_trajectories_processor, fn)
 
-    processor = None
 
     if pool is None:
-        log_debug('Creating Pool')
-        mypool = Pool(processors=1)
+        global DEFAULT_POOL
+        mypool = DEFAULT_POOL
+        log_debug('Using default Pool(%s)' % mypool.nprocs)
+
     else:
-        log_debug('Using provided Pool')
         mypool = pool
+        log_debug('Using provided Pool(%s)' % mypool.nprocs)
 
     log_info('Processing trajectories')
     results = mypool.map(func, proj.get_trajectories())
