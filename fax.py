@@ -8,7 +8,9 @@ import itertools
 import functools
 import logging
 
-
+################################################################################
+#                           Setup logging abilities                            #
+################################################################################
 
 def _setup_logger():
     logformat = '%(asctime)s %(module)s %(levelname)s %(message)s'
@@ -62,6 +64,10 @@ def log_critical(*args, **kws):
     _log_message(logging.CRITICAL, *args, **kws)
 
 
+################################################################################
+#                               Process pool                                   #
+################################################################################
+
 class Pool(object):
     def __init__(self, processes=None, initializer=None, initargs=(), maxtasksperchild=None):
         self.nprocs = processes or 1
@@ -102,7 +108,9 @@ class Pool(object):
             self.pool.join()
             self.pool.terminate()
 
-
+################################################################################
+#                        Abstractions over the data                            #
+################################################################################
 
 
 class Trajectory(object):
@@ -311,6 +319,10 @@ def _merge_projects(proj1, proj2):
     return proj1
 
 
+
+################################################################################
+#                Load and process Projects and Trajectories                    #
+################################################################################
 
 
 def _load_project_processor(path):
