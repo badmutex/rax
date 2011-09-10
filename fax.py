@@ -440,7 +440,7 @@ def process_trajectories(proj, fn, pool=None):
         mypool = pool
 
     log_info('Processing trajectories')
-    results = mypool.map(func, proj.get_trajectories(), chunksize=chunksize)
+    results = mypool.map(func, proj.get_trajectories())
 
     if pool is None:
         log_debug('Finishing with Pool')
