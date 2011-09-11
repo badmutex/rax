@@ -294,13 +294,13 @@ class Project(object):
         """
         _merge_projects(self, proj)
 
-    def write(self, root, pool=Pool(processes=1)):
+    def write(self, root, pool=DEFAULT_POOL):
         """
         Write the project out to a root directory.
         This creates the root/RUNXXXX/CLONEYYYY/GENZZZZ.dat files.
 
         @param root (string): the root under which the RUN/CLONE/GEN files will be created
-        @param pool=Pool(processes=1) (Pool): The *Pool* to used (default with 1 processor)
+        @param pool=DEFAULT_POOL (Pool): The *Pool* to used (default with 1 processor)
         """
 
         log_info('Saving project under %s' % root)
@@ -383,12 +383,12 @@ def rcg_path_name(name, value):
 
 
 
-def load_project(root, runs=None, clones=None, gens=None, pool=None, coalesce=False, chunksize=None):
+def load_project(root, runs=None, clones=None, gens=None, pool=DEFAULT_POOL, coalesce=False, chunksize=None):
     """
     Reads the data into a Project object.
 
     @param root (string): The root to the analysis directory. For example, given a file analysis/rmsd/C-alpha/RUN1234/CLONE4567/GEN4242.dat, root would be 'analysis/rmsd/C-alpha'
-    @param pool=None (Pool): The pool of processors to use. By default a new *Pool* is created and destroyed on completion, unless one is provided.
+    @param pool=DEFAULT_POOL (Pool): The pool of processors to use. By default a new *Pool* is created and destroyed on completion, unless one is provided.
     @param coalesce=False (boolean): Coalesce the project trajectories.
     @param runs=None (list of ints): list of runs to load
     @param clones=None (list of ints):  a list of clones to load
@@ -438,16 +438,8 @@ def load_project(root, runs=None, clones=None, gens=None, pool=None, coalesce=Fa
     data_itr = filter_rcg(data_itr, runs, clones, gens)
 
 
-    if pool is None:
-        global DEFAULT_POOL
-        mypool = DEFAULT_POOL
-        log_debug('Using default Pool(%s)' % mypool.nprocs)
-    else:
-        mypool = pool
-        log_debug('Using provided Pool(%s)' % mypool.nprocs)
-
     log_info('Loading data')
-    projects = mypool.map(_load_project_processor, data_itr)
+    projects = pool.map(_load_project_processor, data_itr)
 
     log_info('Accumulating project data')
     project  = reduce(_merge_projects, projects, Project())
@@ -455,11 +447,6 @@ def load_project(root, runs=None, clones=None, gens=None, pool=None, coalesce=Fa
     if coalesce:
         log_info('Coalescing project')
         project.coalesce()
-
-
-    if pool is None:
-        log_debug('Finishing with Pool')
-        pool.finish()
 
 
     return project
@@ -471,34 +458,21 @@ def _process_trajectories_processor(fn, traj):
 
 
 
-def process_trajectories(proj, fn, pool=None):
+def process_trajectories(proj, fn, pool=DEFAULT_POOL):
     """
     Map a function over the *Trajectories* in a *Project*
 
     @param proj (Project)
     @param fn (Trajectory -> r: a function accepting a single argument of type *Trajectory*)
-    @param pool=None (Pool)
+    @param pool=DEFAULT_POOL (Pool)
 
     @return (sequence of r)
     """
 
     func = functools.partial(_process_trajectories_processor, fn)
 
-
-    if pool is None:
-        global DEFAULT_POOL
-        mypool = DEFAULT_POOL
-        log_debug('Using default Pool(%s)' % mypool.nprocs)
-
-    else:
-        mypool = pool
-        log_debug('Using provided Pool(%s)' % mypool.nprocs)
-
     log_info('Processing trajectories')
-    results = mypool.map(func, proj.get_trajectories())
+    results = pool.map(func, proj.get_trajectories())
 
-    if pool is None:
-        log_debug('Finishing with Pool')
-        mypool.finish()
 
     return results
