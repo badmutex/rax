@@ -208,6 +208,15 @@ class Trajectory(object):
         for gen in sorted(self.data.keys()):
             yield gen
 
+    def count_generations(self):
+        """
+        Get the number of generations in a trajectory
+
+        @return (int): the number of generations in this trajectory
+        """
+
+        return len(self.data.keys())
+
     def get_generation_data(self, gen):
         return self.data[gen]
 
