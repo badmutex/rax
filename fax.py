@@ -127,7 +127,7 @@ def setup_pool(processes):
     """
 
     global DEFAULT_POOL
-    DEFAULT_POOL = Pool(processes=process)
+    DEFAULT_POOL = Pool(processes=processes)
 
 
 def get_pool(pool):
