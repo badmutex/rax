@@ -179,6 +179,15 @@ class Trajectory(object):
         self.data[gen] = data
 
 
+    def numframes(self, keeplast=False):
+        """
+        @param keeplast=False (boolean): keep the last frame between trajectories
+        @return (int): the number of frames in the Trajectory
+        """
+
+        self.coalesce(keeplast=keeplast)
+        return self.coalesced.shape[0]
+
 
     def is_coalesced(self, keeplast=False):
         """
