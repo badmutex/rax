@@ -188,6 +188,20 @@ class Trajectory(object):
         self.coalesce(keeplast=keeplast)
         return self.coalesced.shape[0]
 
+    def length(self, output_freq, keeplast=False):
+        """
+        Get the time elapsed in the trajectory.
+        Units are arbitrary: the *user* is responsible for correctness
+
+        @param output_freq (float): the time between frames
+        @param keeplast=False (boolean): keep the last frame between trajectories
+
+        @return (float): the elapsed time in arbitrary units of time
+        """
+
+        length = self.numframes(keeplast=keeplast)
+        return length * output_freq
+
 
     def is_coalesced(self, keeplast=False):
         """
