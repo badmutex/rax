@@ -276,9 +276,37 @@ class Trajectory(object):
 
 
 class Project(object):
-    def __init__(self):
+    def __init__(self, outputfreq=None):
+        """
+        @param outputfreq=None (float): time between frames
+        """
+
+        log_debug('Project.__init__(outputfreq=%s)' % outputfreq)
+
         self.projdata = dict()
+        self.outputfreq = outputfreq
     
+    def get_trajectory_lengths(self, keeplast=False, pool=DEFAULT_POOL):
+        """
+        @param keeplast=False (boolean): keep the frame between generations
+        @param pool=DEFAULT_POOL (Pool)
+        """
+        log_debug('Project.get_trajectory_lengths: self.outputfreq = %s' % self.outputfreq)
+
+        if type(self.outputfreq) is not float or self.outputfreq <= 0:
+            raise ValueError, 'I need to know the output frequency'
+
+        myfn   = functools.partial(_get_traj_lengths, self.outputfreq, keeplast=keeplast)
+        result = pool.map(myfn, self.get_trajectories())
+        return result
+
+    def set_outputfrequency(self, outputfreq):
+        """
+        @param outputfreq (float): the time between frames
+        """
+
+        self.outputfreq = outputfreq
+
     def add_generation(self, run, clone, gen, data):
         """
         Add data for a generation. Create the Trajectory if needed.
@@ -396,15 +424,22 @@ def _save_gen(dirname, traj, gen):
 
 def _merge_projects(proj1, proj2):
     """
-    Update proj1 with the data in proj2
-    WARNING: Statefull: this modifes the state of proj1
+    Update proj2 with the data in proj1
+    WARNING: Statefull: this modifes the state of proj2
     """
 
-    for run,rundata in proj2.projdata.iteritems():
+    for run,rundata in proj1.projdata.iteritems():
         for clone, clonedata in rundata.iteritems():
             for gen, gendata in clonedata.data.iteritems():
-                proj1.add_generation(run, clone, gen, gendata)
-    return proj1
+                proj2.add_generation(run, clone, gen, gendata)
+
+    log_debug('_merge_projects: proj.outputfreq = %s' % proj2.outputfreq)
+    return proj2
+
+def _get_traj_lengths(outputfreq, traj, keeplast=False):
+    length = traj.length(outputfreq, keeplast=keeplast)
+    r,c = traj.run, traj.clone
+    return r, c, length
 
 
 
@@ -413,14 +448,15 @@ def _merge_projects(proj1, proj2):
 ################################################################################
 
 
-def _load_project_processor(path):
-    log_debug('Loading %s' % path)
+def _load_project_processor(path, **initprojkws):
+    log_debug('_load_project_processor: Loading %s' % path)
+    log_debug('_load_project_processor: initprojkws=%s' % initprojkws)
 
     data  = np.loadtxt(path, delimiter=',', unpack=True)
     run   = data[0,0].astype(int)
     clone = data[1,0].astype(int)
     gen   = data[2,0].astype(int)
-    proj  = Project()
+    proj  = Project(**initprojkws)
     proj.add_generation(run, clone, gen, data[-1])
     return proj
 
@@ -430,7 +466,7 @@ def rcg_path_name(name, value):
 
 
 
-def load_project(root, runs=None, clones=None, gens=None, pool=DEFAULT_POOL, coalesce=False, chunksize=None):
+def load_project(root, runs=None, clones=None, gens=None, pool=DEFAULT_POOL, coalesce=False, chunksize=None, **initprojkws):
     """
     Reads the data into a Project object.
 
@@ -439,12 +475,15 @@ def load_project(root, runs=None, clones=None, gens=None, pool=DEFAULT_POOL, coa
     @param coalesce=False (boolean): Coalesce the project trajectories.
     @param runs=None (list of ints): list of runs to load
     @param clones=None (list of ints):  a list of clones to load
-    @param gens=Nonen (list of ints):  a list of generations to load
+    @param gens=None (list of ints):  a list of generations to load
+
+    @param **initprojkws: parameters to pass to the Project constructor
 
     @return (Project)
 
     """
 
+    log_debug('load_project: initprojkws=%s' % initprojkws)
 
     def filter_rcg(paths, runs, clones, gens):
 
@@ -486,7 +525,9 @@ def load_project(root, runs=None, clones=None, gens=None, pool=DEFAULT_POOL, coa
 
 
     log_info('Loading data')
-    projects = pool.map(_load_project_processor, data_itr)
+    myfn = functools.partial(_load_project_processor, **initprojkws)
+    log_debug('load_project: loadfn: %s' % myfn)
+    projects = pool.map(myfn, data_itr)
 
     log_info('Accumulating project data')
     project  = reduce(_merge_projects, projects, Project())
