@@ -160,6 +160,7 @@ class Trajectory(object):
         self.clone     = clone
         self.data      = dict()
         self.coalesced = None
+        self._coalesced_keeplast = False
 
     def add_generation(self, gen, data):
         """
@@ -177,6 +178,17 @@ class Trajectory(object):
 
         self.data[gen] = data
 
+
+
+    def is_coalesced(self, keeplast=False):
+        """
+        @param keeplast=False (boolean): keep the last frame between trajectories
+        @return (boolean): is the Trajectory coalesced?
+
+        """
+        return self.coalesced is not None and self._coalesced_keeplast and keeplast
+
+
     def coalesce(self,keeplast=False):
         """
         Merge the generation data into a single numpy array.
@@ -184,14 +196,17 @@ class Trajectory(object):
         @param keeplast=False (boolean): Keep the last frame of each generation, otherwise (default) ignore it.
         """
 
-        if self.coalesced is None:
+        self._coalesced_keeplast = keeplast
+
+        if not self.is_coalesced(keeplast=keeplast):
             vals = list()
-            for k in sorted(self.data.iterkeys()):
+            N = len(self.data)
+            for L, k in enumerate(sorted(self.data.iterkeys())):
                 log_debug('Coalescing R%dC%dG%d' % (self.run, self.clone, k))
                 data = self.data[k]
                 n = data.size
                 for i, v in enumerate(data):
-                    if i < n - 1:
+                    if i < n - 1 or L == N - 1:
                         vals.append(v)
                     elif not keeplast:
                         vals.append(v)
