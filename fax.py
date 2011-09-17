@@ -286,12 +286,15 @@ class Project(object):
         self.projdata = dict()
         self.outputfreq = outputfreq
     
-    def get_trajectory_lengths(self, keeplast=False, pool=DEFAULT_POOL):
+    def get_trajectory_lengths(self, keeplast=False, pool=None):
         """
         @param keeplast=False (boolean): keep the frame between generations
         @param pool=DEFAULT_POOL (Pool)
         """
         log_debug('Project.get_trajectory_lengths: self.outputfreq = %s' % self.outputfreq)
+
+        global DEFAULT_POOL
+        pool = pool or DEFAULT_POOL
 
         if type(self.outputfreq) is not float or self.outputfreq <= 0:
             raise ValueError, 'I need to know the output frequency'
@@ -369,7 +372,7 @@ class Project(object):
         """
         _merge_projects(self, proj)
 
-    def write(self, root, pool=DEFAULT_POOL):
+    def write(self, root, pool=None):
         """
         Write the project out to a root directory.
         This creates the root/RUNXXXX/CLONEYYYY/GENZZZZ.dat files.
@@ -379,6 +382,9 @@ class Project(object):
         """
 
         log_info('Saving project under %s' % root)
+
+        global DEFAULT_POOL
+        pool = pool or DEFAULT_POOL
 
         for run, rundata in self.projdata.iteritems():
             for clone, traj in rundata.iteritems():
@@ -466,7 +472,7 @@ def rcg_path_name(name, value):
 
 
 
-def load_project(root, runs=None, clones=None, gens=None, pool=DEFAULT_POOL, coalesce=False, chunksize=None, **initprojkws):
+def load_project(root, runs=None, clones=None, gens=None, pool=None, coalesce=False, chunksize=None, **initprojkws):
     """
     Reads the data into a Project object.
 
@@ -484,6 +490,9 @@ def load_project(root, runs=None, clones=None, gens=None, pool=DEFAULT_POOL, coa
     """
 
     log_debug('load_project: initprojkws=%s' % initprojkws)
+
+    global DEFAULT_POOL
+    pool = pool or DEFAULT_POOL
 
     def filter_rcg(paths, runs, clones, gens):
 
@@ -546,7 +555,7 @@ def _process_trajectories_processor(fn, traj):
 
 
 
-def process_trajectories(proj, fn, pool=DEFAULT_POOL):
+def process_trajectories(proj, fn, pool=None):
     """
     Map a function over the *Trajectories* in a *Project*
 
@@ -556,6 +565,9 @@ def process_trajectories(proj, fn, pool=DEFAULT_POOL):
 
     @return (sequence of r)
     """
+
+    global DEFAULT_POOL
+    pool = pool or DEFAULT_POOL
 
     func = functools.partial(_process_trajectories_processor, fn)
 
