@@ -7,6 +7,7 @@ import os
 import itertools
 import functools
 import logging
+import shutil
 
 ################################################################################
 #                           Setup logging abilities                            #
@@ -303,7 +304,7 @@ def _trajectory_map(traj, fn=None):
 
 
 class Project(object):
-    def __init__(self, outputfreq=None, description=None):
+    def __init__(self, outputfreq=None, description=None, extrafiles=[]):
         """
         @param outputfreq=None (float): time between frames
         """
@@ -313,12 +314,17 @@ class Project(object):
         self.projdata = dict()
         self.outputfreq = outputfreq
         self.description = description
+        self.extrafiles = extrafiles
 
         self._descfile = 'README'
+        self._extradir = 'extrafiles'
 
 
     def set_description(self, desc):
         self.description = desc
+
+    def set_extrafiles(self, extrafiles):
+        self.extrafiles = extrafiles
 
 
     def get_trajectory_lengths(self, keeplast=False, pool=None):
@@ -452,7 +458,7 @@ class Project(object):
 
         log_info('Applying function %s to project' % fn)
 
-        p = Project(outputfreq=self.outputfreq)
+        p = Project(outputfreq=self.outputfreq, description=self.description, extrafiles=extrafiles)
         trajs = self.get_trajectories()
         mapper = functools.partial(_trajectory_map, fn=fn)
 
@@ -483,6 +489,7 @@ class Project(object):
         global _DEFAULT_POOL
         pool = pool or _DEFAULT_POOL
 
+        ## write the data
         for run, rundata in self.projdata.iteritems():
             for clone, traj in rundata.iteritems():
                 dirname = os.path.join(root, rcg_path_name('RUN',run), rcg_path_name('CLONE',clone))
@@ -492,8 +499,28 @@ class Project(object):
                 # force evaluation
                 list(pool.map(functools.partial(_save_gen, dirname, traj), traj.get_generations()))
 
+        ## write the description
         with open(os.path.join(root, self._descfile), 'w') as fd:
             fd.write(self.description)
+            log_info('Wrote description')
+
+        ## copy the extra files
+        if self.extrafiles and len(set(self.extrafiles)) == len(self.extrafiles):
+            outdir = os.path.join(root, self._extradir)
+            if not os.path.exists(outdir):
+                os.makedirs(outdir)
+                log_info('Created %s' % outdir)
+
+            for p in self.extrafiles:
+                outname = os.path.basename(p)
+                target = os.path.join(outdir, outname)
+
+                if os.path.exists(target):
+                    log_warning('Extrafile %s already exists: skipping' % target)
+                    continue
+
+                shutil.copy(p, outdir)
+                log_info('Copied %s to %s' % (p, target))
 
 
     def savetxt(self, path, run, clone, keeplast=False, **kws):
