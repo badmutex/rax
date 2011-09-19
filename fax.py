@@ -270,6 +270,22 @@ class Trajectory(object):
             self.coalesce(keeplast=keeplast)
         return self.coalesced
 
+    def map(self, fn):
+        """
+        Map a function over the values in the trajectory
+
+        @param fn (a -> b)
+
+        @return a new trajectory
+        """
+        t = Trajectory(self.run, self.clone)
+        for g,data in self.data.iteritems():
+            newdata = map(fn, data)
+            newdata = np.array(newdata)
+            t.add_generation(g, newdata)
+        return t
+
+
     def __iter__(self):
         data = self.get_trajectory_data()
         return iter(data)
@@ -310,6 +326,35 @@ class Project(object):
 
         self.outputfreq = outputfreq
 
+
+    def contains_trajectory(self, run, clone):
+        """
+        Does this project already contain this Trajectory?
+        @param run (int)
+        @param clone (int)
+        @returns (boolean)
+        """
+
+        return run in self.projdata and clone in self.projdata[run]
+
+    def init_trajectory(self, run, clone):
+        """
+        Add an empty trajectory
+        @param run (int)
+        @param clone (int)
+        @raise ValueError: if the trajectory is already present
+        """
+
+        if self.contains_trajectory(run, clone):
+            raise ValueError, 'Project already contains (%s, %s)' % (run, clone)
+
+        if not run in self.projdata:
+            self.projdata[run] = dict()
+
+        if not clone in self.projdata[run]:
+            self.projdata[run][clone] = Trajectory(run, clone)
+
+
     def add_generation(self, run, clone, gen, data):
         """
         Add data for a generation. Create the Trajectory if needed.
@@ -318,16 +363,26 @@ class Project(object):
         @param clone (int)
         @param gen (int)
         @param data (one-dimensional numpy.array)
+        @raise ValueError if adding this generation would overwrite one already present
         """
 
-        if run not in self.projdata:
-            self.projdata[run] = dict()
-
-        if clone not in self.projdata[run]:
-            self.projdata[run][clone] = Trajectory(run, clone)
-
+        try:
+            self.init_trajectory(run, clone)
+        except ValueError: pass
         self.projdata[run][clone].add_generation(gen, data)
 
+    def add_trajectory(self, run, clone, traj):
+        """
+        Add a trajectory to the project
+
+        @param run (int)
+        @param clone (int)
+        @param traj (Trajectory)
+
+        @raise ValueError if adding this trajectory would overwrite one already present
+        """
+        self.init_trajectory(run, clone)
+        self.projdata[run][clone] = traj
 
     def get_trajectory(self, run, clone, coalesce=False, keeplast=False):
         """
@@ -363,6 +418,25 @@ class Project(object):
         """
         for traj in self.get_trajectories():
             traj.coalesce(keeplast=keeplast)
+
+
+    def map(self, fn):
+        """
+        Map a function over the values in the project
+        @param fn (a -> b)
+
+        @return a new transformed project
+        """
+
+        log_info('Applying function %s to project' % fn)
+
+        p = Project(outputfreq=self.outputfreq)
+        trajs = self.projdata.values()
+        for t in self.get_trajectories():
+            t2 = t.map(fn)
+            p.add_trajectory(t.run, t.clone, t2)
+
+        return p
 
     def merge(self, proj):
         """
