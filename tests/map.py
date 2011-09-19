@@ -17,7 +17,7 @@ def assign(v, boundary=0.3):
 
 mydirname = os.path.dirname(sys.argv[0])
 inroot    = os.path.join(mydirname, 'relaxation-data')
-nprocs    = 1
+nprocs    = 2
 
 fax.set_logging_level(fax.logging.INFO)
 fax.setup_pool(nprocs)

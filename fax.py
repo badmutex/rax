@@ -278,6 +278,10 @@ class Trajectory(object):
 
         @return a new trajectory
         """
+
+        if fn is None:
+            raise ValueError, 'Cannot use function of None'
+
         t = Trajectory(self.run, self.clone)
         for g,data in self.data.iteritems():
             newdata = map(fn, data)
@@ -289,6 +293,13 @@ class Trajectory(object):
     def __iter__(self):
         data = self.get_trajectory_data()
         return iter(data)
+
+
+def _trajectory_map(traj, fn=None):
+    """
+    used in Project.map to ensure serialization out Pool works
+    """
+    return traj.map(fn)
 
 
 class Project(object):
@@ -420,21 +431,25 @@ class Project(object):
             traj.coalesce(keeplast=keeplast)
 
 
-    def map(self, fn):
+    def map(self, fn, pool=None):
         """
         Map a function over the values in the project
         @param fn (a -> b)
+        @param pool=DEFAULT_POOL (Pool)
 
         @return a new transformed project
         """
 
+        pool = pool or DEFAULT_POOL
+
         log_info('Applying function %s to project' % fn)
 
         p = Project(outputfreq=self.outputfreq)
-        trajs = self.projdata.values()
-        for t in self.get_trajectories():
-            t2 = t.map(fn)
-            p.add_trajectory(t.run, t.clone, t2)
+        trajs = self.get_trajectories()
+        mapper = functools.partial(_trajectory_map, fn=fn)
+
+        for t2 in pool.map(mapper, trajs):
+            p.add_trajectory(t2.run, t2.clone, t2)
 
         return p
 
