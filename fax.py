@@ -111,7 +111,7 @@ class Pool(object):
 
 
 
-DEFAULT_POOL = Pool(processes=1)
+_DEFAULT_POOL = Pool(processes=1)
 
 def setup_pool(processes):
     """
@@ -126,8 +126,8 @@ def setup_pool(processes):
      project = fax.load_project(root)
     """
 
-    global DEFAULT_POOL
-    DEFAULT_POOL = Pool(processes=processes)
+    global _DEFAULT_POOL
+    _DEFAULT_POOL = Pool(processes=processes)
 
 
 def get_pool(pool):
@@ -142,8 +142,8 @@ def get_pool(pool):
         log_debug('Using provided Pool(%s)' % mypool.nprocs)
         return mypool
     else:
-        global DEFAULT_POOL
-        mypool = DEFAULT_POOL
+        global _DEFAULT_POOL
+        mypool = _DEFAULT_POOL
         log_debug('Using default Pool(%s)' % mypool.nprocs)
         return mypool
 
@@ -320,8 +320,8 @@ class Project(object):
         """
         log_debug('Project.get_trajectory_lengths: self.outputfreq = %s' % self.outputfreq)
 
-        global DEFAULT_POOL
-        pool = pool or DEFAULT_POOL
+        global _DEFAULT_POOL
+        pool = pool or _DEFAULT_POOL
 
         if type(self.outputfreq) is not float or self.outputfreq <= 0:
             raise ValueError, 'I need to know the output frequency'
@@ -440,7 +440,7 @@ class Project(object):
         @return a new transformed project
         """
 
-        pool = pool or DEFAULT_POOL
+        pool = pool or _DEFAULT_POOL
 
         log_info('Applying function %s to project' % fn)
 
@@ -472,8 +472,8 @@ class Project(object):
 
         log_info('Saving project under %s' % root)
 
-        global DEFAULT_POOL
-        pool = pool or DEFAULT_POOL
+        global _DEFAULT_POOL
+        pool = pool or _DEFAULT_POOL
 
         for run, rundata in self.projdata.iteritems():
             for clone, traj in rundata.iteritems():
@@ -580,8 +580,8 @@ def load_project(root, runs=None, clones=None, gens=None, pool=None, coalesce=Fa
 
     log_debug('load_project: initprojkws=%s' % initprojkws)
 
-    global DEFAULT_POOL
-    pool = pool or DEFAULT_POOL
+    global _DEFAULT_POOL
+    pool = pool or _DEFAULT_POOL
 
     def filter_rcg(paths, runs, clones, gens):
 
@@ -655,8 +655,8 @@ def process_trajectories(proj, fn, pool=None):
     @return (sequence of r)
     """
 
-    global DEFAULT_POOL
-    pool = pool or DEFAULT_POOL
+    global _DEFAULT_POOL
+    pool = pool or _DEFAULT_POOL
 
     func = functools.partial(_process_trajectories_processor, fn)
 
