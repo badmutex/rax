@@ -12,6 +12,7 @@ pool      = fax.Pool(nprocs)
 
 print 'Loading project from', inroot
 project = fax.load_project(inroot, gens=[0], pool=pool)
+project.set_description('Hello World')
 
 
 print 'Writing project to', outroot

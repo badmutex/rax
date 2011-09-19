@@ -303,7 +303,7 @@ def _trajectory_map(traj, fn=None):
 
 
 class Project(object):
-    def __init__(self, outputfreq=None):
+    def __init__(self, outputfreq=None, description=None):
         """
         @param outputfreq=None (float): time between frames
         """
@@ -312,7 +312,15 @@ class Project(object):
 
         self.projdata = dict()
         self.outputfreq = outputfreq
-    
+        self.description = description
+
+        self._descfile = 'README'
+
+
+    def set_description(self, desc):
+        self.description = desc
+
+
     def get_trajectory_lengths(self, keeplast=False, pool=None):
         """
         @param keeplast=False (boolean): keep the frame between generations
@@ -483,6 +491,10 @@ class Project(object):
 
                 # force evaluation
                 list(pool.map(functools.partial(_save_gen, dirname, traj), traj.get_generations()))
+
+        with open(os.path.join(root, self._descfile), 'w') as fd:
+            fd.write(self.description)
+
 
     def savetxt(self, path, run, clone, keeplast=False, **kws):
         """
