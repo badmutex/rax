@@ -304,9 +304,11 @@ def _trajectory_map(traj, fn=None):
 
 
 class Project(object):
-    def __init__(self, outputfreq=None, description=None, extrafiles=[]):
+    def __init__(self, outputfreq=None, description=None, extrafiles=set()):
         """
         @param outputfreq=None (float): time between frames
+        @param description=None (string)
+        @param description=set() (set)
         """
 
         log_debug('Project.__init__(outputfreq=%s)' % outputfreq)
@@ -321,10 +323,23 @@ class Project(object):
 
 
     def set_description(self, desc):
+        """@param desc (string)"""
         self.description = desc
 
     def set_extrafiles(self, extrafiles):
-        self.extrafiles = extrafiles
+        """@param extrafiles (set)"""
+        self.extrafiles = set(extrafiles)
+
+    def add_extrafiles(self, *paths):
+        """
+        @params paths (string): the paths to add the extra files
+        @raise ValueError: if a path is already tracked
+        """
+
+        for p in paths:
+            if p in self.extrafiles:
+                raise ValueError, 'I already know about %s' % p
+            self.extrafiles.add(p)
 
 
     def get_trajectory_lengths(self, keeplast=False, pool=None):
@@ -661,6 +676,7 @@ def load_project(root, runs=None, clones=None, gens=None, pool=None, coalesce=Fa
     data_itr = filter_rcg(data_itr, runs, clones, gens)
 
 
+    ## load the project data
     log_info('Loading data')
     myfn = functools.partial(_load_project_processor, **initprojkws)
     log_debug('load_project: loadfn: %s' % myfn)
@@ -669,11 +685,22 @@ def load_project(root, runs=None, clones=None, gens=None, pool=None, coalesce=Fa
     log_info('Accumulating project data')
     project  = reduce(_merge_projects, projects, Project())
 
+    ## load the description
     descfile = os.path.join(root, project._descfile)
+    log_debug('Trying to read description from %s' % descfile)
     if os.path.exists(descfile):
         with open(descfile) as fd:
             desc = fd.read()
             project.set_description(desc)
+            log_debug('Read description SUCCESS')
+
+    ## load the extra files
+    extrasdir = os.path.join(root, project._extradir)
+    log_debug('Trying to grab extra files in %s' % extrasdir)
+    if os.path.exists(extrasdir):
+        files = os.listdir(extrasdir)
+        project.set_extrafiles(files)
+        log_debug('Grabbed extra files SUCCESS')
 
 
     if coalesce:
