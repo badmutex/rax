@@ -642,6 +642,13 @@ def load_project(root, runs=None, clones=None, gens=None, pool=None, coalesce=Fa
     log_info('Accumulating project data')
     project  = reduce(_merge_projects, projects, Project())
 
+    descfile = os.path.join(root, project._descfile)
+    if os.path.exists(descfile):
+        with open(descfile) as fd:
+            desc = fd.read()
+            project.set_description(desc)
+
+
     if coalesce:
         log_info('Coalescing project')
         project.coalesce()
