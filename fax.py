@@ -473,7 +473,7 @@ class Project(object):
 
         log_info('Applying function %s to project' % fn)
 
-        p = Project(outputfreq=self.outputfreq, description=self.description, extrafiles=extrafiles)
+        p = Project(outputfreq=self.outputfreq, description=self.description, extrafiles=self.extrafiles)
         trajs = self.get_trajectories()
         mapper = functools.partial(_trajectory_map, fn=fn)
 
@@ -482,13 +482,6 @@ class Project(object):
 
         return p
 
-    def merge(self, proj):
-        """
-        Add the data in *proj* to the current project
-
-        @param proj (Project): merge the Trajectories in *proj* into this Project
-        """
-        _merge_projects(self, proj)
 
     def write(self, root, pool=None):
         """
@@ -570,20 +563,23 @@ def _save_gen(dirname, traj, gen):
 
 
 
-
-def _merge_projects(proj1, proj2):
+def _merge_projects_seq(projs):
     """
-    Update proj2 with the data in proj1
-    WARNING: Statefull: this modifes the state of proj2
+    Used in the fax.load_project function.
+    @param projs (iterable of Projects)
+    @return (Project)
     """
 
-    for run,rundata in proj1.projdata.iteritems():
-        for clone, clonedata in rundata.iteritems():
-            for gen, gendata in clonedata.data.iteritems():
-                proj2.add_generation(run, clone, gen, gendata)
+    log_debug('_merge_projects_seq')
 
-    log_debug('_merge_projects: proj.outputfreq = %s' % proj2.outputfreq)
-    return proj2
+    mainproj = Project()
+    for p in projs:
+        for t in p.get_trajectories():
+            for g in t.get_generations():
+                mainproj.add_generation(t.run, t.clone, g, t.get_generation_data(g))
+    return mainproj
+
+
 
 def _get_traj_lengths(outputfreq, traj, keeplast=False):
     length = traj.length(outputfreq, keeplast=keeplast)
@@ -683,7 +679,8 @@ def load_project(root, runs=None, clones=None, gens=None, pool=None, coalesce=Fa
     projects = pool.map(myfn, data_itr)
 
     log_info('Accumulating project data')
-    project  = reduce(_merge_projects, projects, Project())
+    project = _merge_projects_seq(projects)
+
 
     ## load the description
     descfile = os.path.join(root, project._descfile)
