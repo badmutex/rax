@@ -739,22 +739,23 @@ def load_project(root, runs=None, clones=None, gens=None, pool=None, coalesce=Fa
 
     ## load the description
     descfile = os.path.join(root, project._descfile)
-    log_debug('Trying to read description from %s' % descfile)
+    log_info('Loading description')
     if os.path.exists(descfile):
         with open(descfile) as fd:
             desc = fd.read()
             project.set_description(desc)
-            log_debug('Read description SUCCESS')
+    else:
+        log_warning('Cannot find description file %s' % descfile)
 
     ## load the extra files
     extrasdir = os.path.join(root, project._extradir)
-    log_debug('Trying to grab extra files in %s' % extrasdir)
+    log_info('Loading extra files')
     if os.path.exists(extrasdir):
         files = os.listdir(extrasdir)
         project.set_extrafiles(files)
-        log_debug('Grabbed extra files SUCCESS')
+    else:
+        log_warning('Cannot find extrafiles directory %s' % extrasdir)
 
-    ## TODO: save metadata
 
 
     if coalesce:
