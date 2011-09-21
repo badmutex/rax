@@ -600,16 +600,17 @@ def _save_gen(dirname, traj, gen):
 
 
 
-def _merge_projects_seq(projs):
+def _merge_projects_seq(projs, **initprojkws):
     """
     Used in the fax.load_project function.
     @param projs (iterable of Projects)
+    @param **initprojkws: key-word arguments to be passed to the Project constructor
     @return (Project)
     """
 
     log_debug('_merge_projects_seq')
 
-    mainproj = Project()
+    mainproj = Project(**initprojkws)
     for p in projs:
         for t in p.get_trajectories():
             for g in t.get_generations():
@@ -630,16 +631,14 @@ def _get_traj_lengths(outputfreq, traj, keeplast=False):
 ################################################################################
 
 
-## TODO: move the **initprojkws to the reduction step
-def _load_project_processor(path, **initprojkws):
+def _load_project_processor(path):
     log_debug('_load_project_processor: Loading %s' % path)
-    log_debug('_load_project_processor: initprojkws=%s' % initprojkws)
 
     data  = np.loadtxt(path, delimiter=',', unpack=True)
     run   = data[0,0].astype(int)
     clone = data[1,0].astype(int)
     gen   = data[2,0].astype(int)
-    proj  = Project(**initprojkws)
+    proj  = Project()
     proj.add_generation(run, clone, gen, data[-1])
     return proj
 
@@ -712,13 +711,13 @@ def load_project(root, runs=None, clones=None, gens=None, pool=None, coalesce=Fa
 
     ## load the project data
     log_info('Loading data')
-    myfn = functools.partial(_load_project_processor, **initprojkws)
+    myfn = functools.partial(_load_project_processor)
     log_debug('load_project: loadfn: %s' % myfn)
     projects = pool.map(myfn, data_itr)
 
     ## reduce to a single Project instance
     log_info('Accumulating project data')
-    project = _merge_projects_seq(projects)
+    project = _merge_projects_seq(projects, **initprojkws)
 
     ## load the metadata
     log_info('Loading metadata')
