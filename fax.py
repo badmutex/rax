@@ -309,9 +309,8 @@ def _trajectory_map(traj, fn=None):
     return traj.map(fn)
 
 
-## TODO: add metadata field
 class Project(object):
-    def __init__(self, outputfreq=None, description=None, extrafiles=set()):
+    def __init__(self, outputfreq=None, description=None, extrafiles=set(), metadata=dict()):
         """
         @param outputfreq=None (float): time between frames
         @param description=None (string)
@@ -324,14 +323,28 @@ class Project(object):
         self.outputfreq  = outputfreq
         self.description = description
         self.extrafiles  = extrafiles
+        self.metadata    = metadata
 
         self._descfile   = 'README'
         self._extradir   = 'extrafiles'
+        self._metadatafile = 'metadata'
 
 
     def set_description(self, desc):
         """@param desc (string)"""
         self.description = desc
+
+    def add_metadata(self, name, value):
+        """
+        Meta data is stored as string representations of the *value*s in a dictionary indexed by *name*
+        @param name (str): the key
+        @param value (a): the value; stored as metadata[name] = str(value)
+        @raise ValueError: if the *name* is already associated with some metadata
+        """
+
+        if name in self.metadata:
+            raise ValueError, 'Project metadata already contains a value %s for key %s' % (self.metadata[name], name)
+        self.metadata[name] = str(value)
 
     def set_extrafiles(self, extrafiles):
         """@param extrafiles (set)"""
@@ -523,6 +536,14 @@ class Project(object):
                 # force evaluation
                 list(pool.map(functools.partial(_save_gen, dirname, traj), traj.get_generations()))
 
+
+        ## write the metadata
+        mdpath = os.path.join(root, self._metadatafile)
+        with open(mdpath, 'w') as fd:
+            for k, v in self.metadata.iteritems():
+                fd.write('%s = %s\n' % (k, v))
+        log_info('Wrote metadata to %s' % mdpath)
+
         ## write the description
         with open(os.path.join(root, self._descfile), 'w') as fd:
             fd.write(self.description)
@@ -699,6 +720,22 @@ def load_project(root, runs=None, clones=None, gens=None, pool=None, coalesce=Fa
     log_info('Accumulating project data')
     project = _merge_projects_seq(projects)
 
+    ## load the metadata
+    log_info('Loading metadata')
+    mdpath = os.path.join(root, project._metadatafile)
+    if os.path.exists(mdpath):
+        with open(mdpath) as fd:
+            for line in itertools.imap(str.strip, fd):
+                splitted = line.split('=')
+
+                # the values may have '=' that would have be split
+                k, v     = splitted[0], '='.join(splitted[1:])
+                k, v     = map(str.strip, (k,v))
+
+                project.add_metadata(k, v)
+    else:
+        log_warning('Cannot find metadata file %s' % mdpath)
+    log_debug('_load_project: loaded metadata: %s' % project.metadata)
 
     ## load the description
     descfile = os.path.join(root, project._descfile)

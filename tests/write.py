@@ -12,13 +12,15 @@ nprocs    = 1
 # fax.set_logging_level(fax.logging.DEBUG)
 
 
-print 'Loading project from', inroot
 project = fax.load_project(inroot, gens=[0])
+
 project.set_description('Hello World')
 
-print 'Description:',  project.description
-print 'Extra files:', project.extrafiles
+print 'Metadata:', project.metadata
+
+project.add_metadata('the answer', 42)
+
+project.add_extrafiles(sys.argv[0])
 
 
-print 'Writing project to', outroot
 project.write(outroot)
