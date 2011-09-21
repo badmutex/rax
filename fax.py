@@ -15,11 +15,15 @@ import shutil
 
 def _setup_logger():
     logformat = '%(asctime)s %(module)s %(levelname)s %(message)s'
+
     logger    = logging.getLogger(__name__)
     logger.setLevel(logging.INFO)
+
     handler   = logging.StreamHandler()
     handler.setLevel(logging.DEBUG)
+
     formatter = logging.Formatter(logformat)
+
     handler.setFormatter(formatter)
     logger.addHandler(handler)
 
@@ -38,8 +42,7 @@ def set_logging_level(lvl):
 
     Example:
         import fax
-        import logging
-        fax.set_logging_level(logging.DEBUG)
+        fax.set_logging_level(fax.logging.DEBUG)
     """
     global _LOGGER
     _LOGGER.setLevel(lvl)
@@ -122,7 +125,8 @@ def setup_pool(processes):
 
     Example:
      import fax
-     fax.setup_pool(42)
+     nprocs = 42
+     fax.setup_pool(nprocs)
      ...
      project = fax.load_project(root)
     """
@@ -157,10 +161,10 @@ def get_pool(pool):
 
 class Trajectory(object):
     def __init__(self, run, clone):
-        self.run       = run
-        self.clone     = clone
-        self.data      = dict()
-        self.coalesced = None
+        self.run                 = run
+        self.clone               = clone
+        self.data                = dict()
+        self.coalesced           = None
         self._coalesced_keeplast = False
 
     def add_generation(self, gen, data):
@@ -242,10 +246,9 @@ class Trajectory(object):
         """
         Iterate over the generations.
 
-        @return (generator): a generator over the trajectories in the project
+        @return (list of int): a generator over the generation numbers in the Trajectory in sorted order
         """
-        for gen in sorted(self.data.keys()):
-            yield gen
+        return sorted(self.data.keys())
 
     def count_generations(self):
         """
@@ -257,6 +260,9 @@ class Trajectory(object):
         return len(self.data.keys())
 
     def get_generation_data(self, gen):
+        """
+        @return (numpy.array): an array of the values for the specified generation
+        """
         return self.data[gen]
 
 
@@ -264,7 +270,7 @@ class Trajectory(object):
         """
         Get the numpy.array of the coalesced trajectory
 
-        @return (numpy.array): The (optionally coalesced) data for the trajectory.
+        @return (numpy.array): The (optionally coalesced) data for the entire trajectory.
         """
 
         if self.coalesced is None:
@@ -303,6 +309,7 @@ def _trajectory_map(traj, fn=None):
     return traj.map(fn)
 
 
+## TODO: add metadata field
 class Project(object):
     def __init__(self, outputfreq=None, description=None, extrafiles=set()):
         """
@@ -313,13 +320,13 @@ class Project(object):
 
         log_debug('Project.__init__(outputfreq=%s)' % outputfreq)
 
-        self.projdata = dict()
-        self.outputfreq = outputfreq
+        self.projdata    = dict()
+        self.outputfreq  = outputfreq
         self.description = description
-        self.extrafiles = extrafiles
+        self.extrafiles  = extrafiles
 
-        self._descfile = 'README'
-        self._extradir = 'extrafiles'
+        self._descfile   = 'README'
+        self._extradir   = 'extrafiles'
 
 
     def set_description(self, desc):
@@ -332,7 +339,7 @@ class Project(object):
 
     def add_extrafiles(self, *paths):
         """
-        @params paths (string): the paths to add the extra files
+        @param paths (string): the paths to add the extra files
         @raise ValueError: if a path is already tracked
         """
 
@@ -350,7 +357,7 @@ class Project(object):
         log_debug('Project.get_trajectory_lengths: self.outputfreq = %s' % self.outputfreq)
 
         global _DEFAULT_POOL
-        pool = pool or _DEFAULT_POOL
+        pool   = pool or _DEFAULT_POOL
 
         if type(self.outputfreq) is not float or self.outputfreq <= 0:
             raise ValueError, 'I need to know the output frequency'
@@ -406,8 +413,12 @@ class Project(object):
         @raise ValueError if adding this generation would overwrite one already present
         """
 
-        try:
-            self.init_trajectory(run, clone)
+        ## the exception handles 2 cases:
+        #  1) create an empty trajectory for the given (run,clone)
+        #     => no exception raised
+        #  2) a trajectory exists, raising an exception
+        #     => let the trajectory handle adding the generation data as normal
+        try: self.init_trajectory(run, clone)
         except ValueError: pass
         self.projdata[run][clone].add_generation(gen, data)
 
@@ -490,6 +501,11 @@ class Project(object):
 
         @param root (string): the root under which the RUN/CLONE/GEN files will be created
         @param pool=DEFAULT_POOL (Pool): The *Pool* to used (default with 1 processor)
+
+        Example:
+          root = '/tmp/testroot'
+          myproject.write(root)
+          # results in /tmp/testroot/RUN1234/CLONE5678/GEN9012.dat, etc
         """
 
         log_info('Saving project under %s' % root)
@@ -593,6 +609,7 @@ def _get_traj_lengths(outputfreq, traj, keeplast=False):
 ################################################################################
 
 
+## TODO: move the **initprojkws to the reduction step
 def _load_project_processor(path, **initprojkws):
     log_debug('_load_project_processor: Loading %s' % path)
     log_debug('_load_project_processor: initprojkws=%s' % initprojkws)
@@ -678,6 +695,7 @@ def load_project(root, runs=None, clones=None, gens=None, pool=None, coalesce=Fa
     log_debug('load_project: loadfn: %s' % myfn)
     projects = pool.map(myfn, data_itr)
 
+    ## reduce to a single Project instance
     log_info('Accumulating project data')
     project = _merge_projects_seq(projects)
 
@@ -698,6 +716,8 @@ def load_project(root, runs=None, clones=None, gens=None, pool=None, coalesce=Fa
         files = os.listdir(extrasdir)
         project.set_extrafiles(files)
         log_debug('Grabbed extra files SUCCESS')
+
+    ## TODO: save metadata
 
 
     if coalesce:
