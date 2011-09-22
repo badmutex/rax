@@ -628,6 +628,26 @@ class Project(object):
         np.savetxt(path, data.transpose(), **kws)
 
 
+    def missing_data(self):
+        """
+        Iterate over the (run,clone,gen) 3-tuples that are missing.
+        If the gen is None, then the trajectory given by (run, clone) is missing
+
+        @return (generator over (int,int,int))
+        """
+
+        for r in xrange(self.runs):
+            for c in xrange(self.clones):
+                if self.contains_trajectory(r, c):
+                    t = self.get_trajectory(r, c)
+                    t.set_num_gens(self.gens)
+                    for gen in t.missing_generations():
+                        yield t.run, t.clone, gen
+                else:
+                    yield (r, c, None)
+
+
+
 
 def _save_gen(dirname, traj, gen):
     path  = os.path.join(dirname, rcg_path_name('GEN', gen) +'.dat')

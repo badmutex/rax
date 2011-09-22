@@ -7,8 +7,6 @@ import os
 
 mydirname = os.path.dirname(sys.argv[0])
 inroot    = os.path.join(mydirname, 'relaxation-data')
-outroot   = os.path.join(mydirname, 'test-write-project')
-nprocs    = 1
 
 traj = fax.Trajectory(0,1)
 traj.set_num_gens(19)
@@ -21,3 +19,11 @@ for gen in generations:
 
 missing = traj.missing_generations()
 print 'Trajectory missing generations', missing
+
+
+project        = fax.load_project(inroot)
+project.runs   = 3
+project.clones = 2
+project.gens   = 30
+
+print 'Project missing:', list(project.missing_data())
