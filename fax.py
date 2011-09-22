@@ -286,7 +286,7 @@ class Trajectory(object):
 
         @return (list of int): a generator over the generation numbers in the Trajectory in sorted order
         """
-        return sorted(self.data.keys())
+        return list(self._known_gens)
 
     def count_generations(self):
         """
@@ -295,7 +295,7 @@ class Trajectory(object):
         @return (int): the number of generations in this trajectory
         """
 
-        return len(self.data.keys())
+        return len(self._known_gens)
 
     def get_generation_data(self, gen):
         """
