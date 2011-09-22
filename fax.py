@@ -348,7 +348,7 @@ def _trajectory_map(traj, fn=None):
 
 
 class Project(object):
-    def __init__(self, runs=None, clones=None, gens=None, outputfreq=None, description=None, extrafiles=set(), metadata=dict()):
+    def __init__(self, runs=0, clones=0, gens=0, outputfreq=None, description=None, extrafiles=set(), metadata=dict()):
         """
         @param runs=None (int): the number of runs in the project
         @param clones=None (int): the number of clones in the project
@@ -370,6 +370,7 @@ class Project(object):
         self._descfile   = 'README'
         self._extradir   = 'extrafiles'
         self._metadatafile = 'metadata'
+        self._rcg_file   = 'num_runs_clones_gens'
 
 
     def set_description(self, desc):
@@ -579,6 +580,12 @@ class Project(object):
                 list(pool.map(functools.partial(_save_gen, dirname, traj), traj.get_generations()))
 
 
+        ## write the number of runs, clones, and generations
+        rcgpath = os.path.join(root, self._rcg_file)
+        with open(rcgpath, 'w') as fd:
+            fd.write('%d %d %d' % (self.runs, self.clones, self.gens))
+        log_info('Wrote the number of runs (%s), clones (%d), and gens (%d) to %s' % (self.runs, self.clones, self.gens, rcgpath))
+
         ## write the metadata
         mdpath = os.path.join(root, self._metadatafile)
         with open(mdpath, 'w') as fd:
@@ -780,6 +787,19 @@ def load_project(root, runs=None, clones=None, gens=None, pool=None, coalesce=Fa
     ## reduce to a single Project instance
     log_info('Accumulating project data')
     project = _merge_projects_seq(projects, **initprojkws)
+
+    ## load the number of runs/clones/gens
+    log_info('Reading the number of runs/clones/gens')
+    rcgpath = os.path.join(root, project._rcg_file)
+    if os.path.exists(rcgpath):
+        with open(rcgpath) as fd:
+            rcgs           = fd.readline().strip().split()
+            rs,cs,gs       = map(lambda s: int(s.strip()), rcgs)
+            project.runs   = rs
+            project.clones = cs
+            project.gens   = gs
+    else:
+        log_warning('Cannot find number of runs/clones/gens at %s' % rcgpath)
 
     ## load the metadata
     log_info('Loading metadata')

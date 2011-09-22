@@ -22,8 +22,9 @@ print 'Trajectory missing generations', missing
 
 
 project        = fax.load_project(inroot)
-project.runs   = 3
-project.clones = 2
-project.gens   = 30
+
+# project.runs   = 3
+# project.clones = 2
+# project.gens   = 30
 
 print 'Project missing:', list(project.missing_data())
