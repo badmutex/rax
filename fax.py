@@ -160,12 +160,48 @@ def get_pool(pool):
 
 
 class Trajectory(object):
-    def __init__(self, run, clone):
+    def __init__(self, run, clone, gens=None):
+        """
+        @param run (int)
+        @param clone (int)
+        @param gens=None (int): the total number of generations this trajectory could have
+        """
+
         self.run                 = run
         self.clone               = clone
+        self.gens                = gens
         self.data                = dict()
         self.coalesced           = None
         self._coalesced_keeplast = False
+
+        ## keep track of generations as they come in
+        self._known_gens         = set()
+        if type(gens) is int and gens > 0:
+            self._all_gens       = self._compute_all_generations_set()
+        else:
+            self._all_gens       = None
+
+    def set_num_gens(self, gens):
+        """
+        @param gens (int)
+        """
+        self.gens = gens
+
+    def _compute_all_generations_set(self):
+        """
+        Compute the set of all possible generations this trajectory could have
+        """
+        return set(xrange(self.gens))
+
+    def missing_generations(self):
+        """
+        @return (set of ints): the set of generations that are missing in this trajectory
+        """
+
+        if self._all_gens is None:
+            self._all_gens = self._compute_all_generations_set()
+
+        return self._all_gens - self._known_gens
 
     def add_generation(self, gen, data):
         """
@@ -182,6 +218,8 @@ class Trajectory(object):
             self.coalesced = None
 
         self.data[gen] = data
+
+        self._known_gens.add(gen)
 
 
     def numframes(self, keeplast=False):
@@ -310,16 +348,20 @@ def _trajectory_map(traj, fn=None):
 
 
 class Project(object):
-    def __init__(self, outputfreq=None, description=None, extrafiles=set(), metadata=dict()):
+    def __init__(self, runs=None, clones=None, gens=None, outputfreq=None, description=None, extrafiles=set(), metadata=dict()):
         """
+        @param runs=None (int): the number of runs in the project
+        @param clones=None (int): the number of clones in the project
+        @param gens=None (int): the number of generations in the project
         @param outputfreq=None (float): time between frames
         @param description=None (string)
         @param description=set() (set)
         """
 
-        log_debug('Project.__init__(outputfreq=%s)' % outputfreq)
-
         self.projdata    = dict()
+        self.runs        = runs
+        self.clones      = clones
+        self.gens        = gens
         self.outputfreq  = outputfreq
         self.description = description
         self.extrafiles  = extrafiles
