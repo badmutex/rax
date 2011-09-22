@@ -704,11 +704,22 @@ def _load_project_processor(path):
     log_debug('_load_project_processor: Loading %s' % path)
 
     data  = np.loadtxt(path, delimiter=',', unpack=True)
-    run   = data[0,0].astype(int)
-    clone = data[1,0].astype(int)
-    gen   = data[2,0].astype(int)
+
+    if len(data.shape) == 2:
+        run    = data[0,0].astype(int)
+        clone  = data[1,0].astype(int)
+        gen    = data[2,0].astype(int)
+        values = data[-1]
+    elif len(data.shape) == 1:
+        run    = data[0].astype(int)
+        clone  = data[1].astype(int)
+        gen    = data[2].astype(int)
+        values = np.array([data[-1]])
+    else:
+        log_error('Cannot load datafile %s: irregular shape: %s' % (path, data.shape))
+
     proj  = Project()
-    proj.add_generation(run, clone, gen, data[-1])
+    proj.add_generation(run, clone, gen, values)
     return proj
 
 
