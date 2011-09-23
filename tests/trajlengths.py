@@ -1,10 +1,11 @@
 
 import fax
+import ez.log as log
 
 import sys
 import os
 
-fax.set_logging_level(fax.logging.INFO)
+log.set_level(log.INFO)
 
 mydirname = os.path.dirname(sys.argv[0])
 inroot    = os.path.join(mydirname, 'relaxation-data')

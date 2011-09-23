@@ -1,6 +1,8 @@
 
 import numpy as np
 
+import ez.log as log
+
 import multiprocessing as multiproc
 import glob
 import os
@@ -9,63 +11,8 @@ import functools
 import logging
 import shutil
 
-################################################################################
-#                           Setup logging abilities                            #
-################################################################################
+log.setup(__name__)
 
-def _setup_logger():
-    logformat = '%(asctime)s %(module)s %(levelname)s %(message)s'
-
-    logger    = logging.getLogger(__name__)
-    logger.setLevel(logging.INFO)
-
-    handler   = logging.StreamHandler()
-    handler.setLevel(logging.DEBUG)
-
-    formatter = logging.Formatter(logformat)
-
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
-
-    return logger
-
-_LOGGER = _setup_logger()
-
-
-
-
-def set_logging_level(lvl):
-    """
-    Set the logging level.
-
-    @param lvl (logging.LEVEL): a logging level from the logging module
-
-    Example:
-        import fax
-        fax.set_logging_level(fax.logging.DEBUG)
-    """
-    global _LOGGER
-    _LOGGER.setLevel(lvl)
-
-
-def _log_message(lvl, msg, *args, **kws):
-    global _LOGGER
-    _LOGGER.log(lvl, msg, *args, **kws)
-
-def log_debug(*args, **kws):
-    _log_message(logging.DEBUG, *args, **kws)
-
-def log_info(*args, **kws):
-    _log_message(logging.INFO, *args, **kws)
-
-def log_warning(*args, **kws):
-    _log_message(logging.WARNING, *args, **kws)
-
-def log_error(*args, **kws):
-    _log_message(logging.ERROR, *args, **kws)
-
-def log_critical(*args, **kws):
-    _log_message(logging.CRITICAL, *args, **kws)
 
 
 ################################################################################
@@ -94,14 +41,14 @@ class Pool(object):
         @return (list or generator): a list (nprocs > 1 or force == True) or a generator (nprocs == 1) of values from applying the function to the iterable
         """
         if self.nprocs == 1:
-            log_info('Pool: mapping using single processor')
+            log.info('Pool: mapping using single processor')
             generator = itertools.imap(func, iterable)
             if force:
                 return list(generator)
             else:
                 return generator
         else:
-            log_info('Pool: mapping using %d processors' % self.nprocs)
+            log.info('Pool: mapping using %d processors' % self.nprocs)
             return self.pool.map(func, iterable, chunksize)
 
     def finish(self):
@@ -144,12 +91,12 @@ def get_pool(pool):
 
     if type(pool) is Pool:
         mypool = pool
-        log_debug('Using provided Pool(%s)' % mypool.nprocs)
+        log.debug('Using provided Pool(%s)' % mypool.nprocs)
         return mypool
     else:
         global _DEFAULT_POOL
         mypool = _DEFAULT_POOL
-        log_debug('Using default Pool(%s)' % mypool.nprocs)
+        log.debug('Using default Pool(%s)' % mypool.nprocs)
         return mypool
 
 
@@ -268,7 +215,7 @@ class Trajectory(object):
             vals = list()
             N = len(self.data)
             for L, k in enumerate(sorted(self.data.iterkeys())):
-                log_debug('Coalescing R%dC%dG%d' % (self.run, self.clone, k))
+                log.debug('Coalescing R%dC%dG%d' % (self.run, self.clone, k))
                 data = self.data[k]
                 n = data.size
                 for i, v in enumerate(data):
@@ -410,7 +357,7 @@ class Project(object):
         @param keeplast=False (boolean): keep the frame between generations
         @param pool=DEFAULT_POOL (Pool)
         """
-        log_debug('Project.get_trajectory_lengths: self.outputfreq = %s' % self.outputfreq)
+        log.debug('Project.get_trajectory_lengths: self.outputfreq = %s' % self.outputfreq)
 
         global _DEFAULT_POOL
         pool   = pool or _DEFAULT_POOL
@@ -538,7 +485,7 @@ class Project(object):
 
         pool = pool or _DEFAULT_POOL
 
-        log_info('Applying function %s to project' % fn)
+        log.info('Applying function %s to project' % fn)
 
         p = Project(outputfreq=self.outputfreq, description=self.description, extrafiles=self.extrafiles)
         trajs = self.get_trajectories()
@@ -564,7 +511,7 @@ class Project(object):
           # results in /tmp/testroot/RUN1234/CLONE5678/GEN9012.dat, etc
         """
 
-        log_info('Saving project under %s' % root)
+        log.info('Saving project under %s' % root)
 
         global _DEFAULT_POOL
         pool = pool or _DEFAULT_POOL
@@ -584,37 +531,37 @@ class Project(object):
         rcgpath = os.path.join(root, self._rcg_file)
         with open(rcgpath, 'w') as fd:
             fd.write('%d %d %d' % (self.runs, self.clones, self.gens))
-        log_info('Wrote the number of runs (%s), clones (%d), and gens (%d) to %s' % (self.runs, self.clones, self.gens, rcgpath))
+        log.info('Wrote the number of runs (%s), clones (%d), and gens (%d) to %s' % (self.runs, self.clones, self.gens, rcgpath))
 
         ## write the metadata
         mdpath = os.path.join(root, self._metadatafile)
         with open(mdpath, 'w') as fd:
             for k, v in self.metadata.iteritems():
                 fd.write('%s = %s\n' % (k, v))
-        log_info('Wrote metadata to %s' % mdpath)
+        log.info('Wrote metadata to %s' % mdpath)
 
         ## write the description
         with open(os.path.join(root, self._descfile), 'w') as fd:
             fd.write(self.description)
-            log_info('Wrote description')
+            log.info('Wrote description')
 
         ## copy the extra files
         if self.extrafiles and len(set(self.extrafiles)) == len(self.extrafiles):
             outdir = os.path.join(root, self._extradir)
             if not os.path.exists(outdir):
                 os.makedirs(outdir)
-                log_info('Created %s' % outdir)
+                log.info('Created %s' % outdir)
 
             for p in self.extrafiles:
                 outname = os.path.basename(p)
                 target = os.path.join(outdir, outname)
 
                 if os.path.exists(target):
-                    log_warning('Extrafile %s already exists: skipping' % target)
+                    log.warn('Extrafile %s already exists: skipping' % target)
                     continue
 
                 shutil.copy(p, outdir)
-                log_info('Copied %s to %s' % (p, target))
+                log.info('Copied %s to %s' % (p, target))
 
 
     def savetxt(self, path, run, clone, keeplast=False, **kws):
@@ -628,7 +575,7 @@ class Project(object):
         @param kws: keywords to be passed to numpy.savetxt
         """
 
-        log_info('Saving trajectory to %s' % path)
+        log.info('Saving trajectory to %s' % path)
 
         traj = self.get_trajectory(run, clone)
         data = traj.get_trajectory_data(keeplast=keeplast)
@@ -661,7 +608,7 @@ def _save_gen(dirname, traj, gen):
     run   = traj.run
     clone = traj.clone
     data  = traj.get_generation_data(gen)
-    log_debug('Saving %s' % path)
+    log.debug('Saving %s' % path)
     with open(path, 'w') as fd:
         for ix, value in enumerate(data):
             fd.write('%(run)d,%(clone)d,%(gen)d,%(frame)d,%(data)s\n' % {
@@ -677,7 +624,7 @@ def _merge_projects_seq(projs, **initprojkws):
     @return (Project)
     """
 
-    log_debug('_merge_projects_seq')
+    log.debug('_merge_projects_seq')
 
     mainproj = Project(**initprojkws)
     for p in projs:
@@ -701,7 +648,7 @@ def _get_traj_lengths(outputfreq, traj, keeplast=False):
 
 
 def _load_project_processor(path):
-    log_debug('_load_project_processor: Loading %s' % path)
+    log.debug('_load_project_processor: Loading %s' % path)
 
     data  = np.loadtxt(path, delimiter=',', unpack=True)
 
@@ -716,7 +663,7 @@ def _load_project_processor(path):
         gen    = data[2].astype(int)
         values = np.array([data[-1]])
     else:
-        log_error('Cannot load datafile %s: irregular shape: %s' % (path, data.shape))
+        log.error('Cannot load datafile %s: irregular shape: %s' % (path, data.shape))
 
     proj  = Project()
     proj.add_generation(run, clone, gen, values)
@@ -745,7 +692,7 @@ def load_project(root, runs=None, clones=None, gens=None, pool=None, coalesce=Fa
 
     """
 
-    log_debug('load_project: initprojkws=%s' % initprojkws)
+    log.debug('load_project: initprojkws=%s' % initprojkws)
 
     global _DEFAULT_POOL
     pool = pool or _DEFAULT_POOL
@@ -782,7 +729,7 @@ def load_project(root, runs=None, clones=None, gens=None, pool=None, coalesce=Fa
             if all(oks): yield p
 
 
-    log_info('Searching for data in %s' % root)
+    log.info('Searching for data in %s' % root)
 
     myglob   = os.path.join(root, 'RUN*', 'CLONE*', 'GEN*.dat')
     data_itr = glob.iglob(myglob)
@@ -790,17 +737,17 @@ def load_project(root, runs=None, clones=None, gens=None, pool=None, coalesce=Fa
 
 
     ## load the project data
-    log_info('Loading data')
+    log.info('Loading data')
     myfn = functools.partial(_load_project_processor)
-    log_debug('load_project: loadfn: %s' % myfn)
+    log.debug('load_project: loadfn: %s' % myfn)
     projects = pool.map(myfn, data_itr)
 
     ## reduce to a single Project instance
-    log_info('Accumulating project data')
+    log.info('Accumulating project data')
     project = _merge_projects_seq(projects, **initprojkws)
 
     ## load the number of runs/clones/gens
-    log_info('Reading the number of runs/clones/gens')
+    log.info('Reading the number of runs/clones/gens')
     rcgpath = os.path.join(root, project._rcg_file)
     if os.path.exists(rcgpath):
         with open(rcgpath) as fd:
@@ -810,10 +757,10 @@ def load_project(root, runs=None, clones=None, gens=None, pool=None, coalesce=Fa
             project.clones = cs
             project.gens   = gs
     else:
-        log_warning('Cannot find number of runs/clones/gens at %s' % rcgpath)
+        log.warn('Cannot find number of runs/clones/gens at %s' % rcgpath)
 
     ## load the metadata
-    log_info('Loading metadata')
+    log.info('Loading metadata')
     mdpath = os.path.join(root, project._metadatafile)
     if os.path.exists(mdpath):
         with open(mdpath) as fd:
@@ -826,32 +773,32 @@ def load_project(root, runs=None, clones=None, gens=None, pool=None, coalesce=Fa
 
                 project.add_metadata(k, v)
     else:
-        log_warning('Cannot find metadata file %s' % mdpath)
-    log_debug('_load_project: loaded metadata: %s' % project.metadata)
+        log.warn('Cannot find metadata file %s' % mdpath)
+    log.debug('_load_project: loaded metadata: %s' % project.metadata)
 
     ## load the description
     descfile = os.path.join(root, project._descfile)
-    log_info('Loading description')
+    log.info('Loading description')
     if os.path.exists(descfile):
         with open(descfile) as fd:
             desc = fd.read()
             project.set_description(desc)
     else:
-        log_warning('Cannot find description file %s' % descfile)
+        log.warn('Cannot find description file %s' % descfile)
 
     ## load the extra files
     extrasdir = os.path.join(root, project._extradir)
-    log_info('Loading extra files')
+    log.info('Loading extra files')
     if os.path.exists(extrasdir):
         files = os.listdir(extrasdir)
         project.set_extrafiles(files)
     else:
-        log_warning('Cannot find extrafiles directory %s' % extrasdir)
+        log.warn('Cannot find extrafiles directory %s' % extrasdir)
 
 
 
     if coalesce:
-        log_info('Coalescing project')
+        log.info('Coalescing project')
         project.coalesce()
 
 
@@ -859,7 +806,7 @@ def load_project(root, runs=None, clones=None, gens=None, pool=None, coalesce=Fa
 
 
 def _process_trajectories_processor(fn, traj):
-    log_debug('Processing R %d C %d' % (traj.run, traj.clone))
+    log.debug('Processing R %d C %d' % (traj.run, traj.clone))
     return fn(traj)
 
 
@@ -880,7 +827,7 @@ def process_trajectories(proj, fn, pool=None):
 
     func = functools.partial(_process_trajectories_processor, fn)
 
-    log_info('Processing trajectories')
+    log.info('Processing trajectories')
     results = pool.map(func, proj.get_trajectories())
 
 

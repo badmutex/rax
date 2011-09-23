@@ -1,5 +1,6 @@
 
 import fax
+import ez.log as log
 
 import sys
 import os
@@ -9,7 +10,7 @@ inroot    = os.path.join(mydirname, 'relaxation-data')
 outroot   = os.path.join(mydirname, 'test-write-project')
 nprocs    = 1
 
-# fax.set_logging_level(fax.logging.DEBUG)
+log.set_level(log.DEBUG)
 
 
 project = fax.load_project(inroot, gens=[0])
