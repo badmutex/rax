@@ -1,7 +1,7 @@
 from distutils.core import setup
 
 setup(name='fax',
-      version='0.2',
+      version='0.3',
       py_modules= ['fax'
                    ],
 
