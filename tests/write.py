@@ -1,6 +1,6 @@
 
 import fax
-import ez.log as log
+import ezlog
 
 import sys
 import os
@@ -10,18 +10,21 @@ inroot    = os.path.join(mydirname, 'relaxation-data')
 outroot   = os.path.join(mydirname, 'test-write-project')
 nprocs    = 1
 
-log.set_level(log.DEBUG)
+log = ezlog.setup(__name__)
+ezlog.set_level(ezlog.INFO, name=fax.__name__)
+ezlog.set_level(ezlog.DEBUG, name=__name__)
 
 
 project = fax.load_project(inroot, gens=[0])
 
 project.set_description('Hello World')
 
-print 'Metadata:', project.metadata
+log.info('Metadata:', project.metadata)
 
 project.add_metadata('the answer', 42)
 
 project.add_extrafiles(sys.argv[0])
 
 
+log.debug('writing project %s' % outroot)
 project.write(outroot)

@@ -19,6 +19,15 @@ For example:
 	1234,4567,4242,3,0.934575
 
 
+
+Dependencies
+============
+   1. ezlog:	  https://github.com/badi/ezlog
+   2. ezpool:	  https://github.com/badi/ezpool
+   3. numpy:	  http://numpy.scipy.org/
+   4. python 2.7: http://www.python.org/
+
+
 Example usage
 =============
 
@@ -28,17 +37,17 @@ Given a directory such as 'analysis/rmsd/C-alpha/RUN*/CLONE*/GEN*.dat, one could
  
  root	= 'analysis/rmsd/C-alpha'
  ncores	= 42
- pool	= fax.Pool(ncores)
+ fax.setup_pool(ncores)
  
  # read in the data using 42 cores
- project = fax.load_project(root, pool=pool)
+ project = fax.load_project(root)
  
  # a function to process each trajectory
  def my_analysis(traj):
  	return "magic result"
  
  # get the results
- results = fax.process_trajectories(project, my_analysis, pool=pool)
+ results = fax.process_trajectories(project, my_analysis)
  
  # finish up
  pool.finish()

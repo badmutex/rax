@@ -1,18 +1,18 @@
 
 import fax
-import ez.log as log
+import ezlog
+import ezpool
 
 import sys
 import os
 
-log.set_level(log.INFO)
+ezlog.set_level(ezlog.INFO)
 
 mydirname = os.path.dirname(sys.argv[0])
 inroot    = os.path.join(mydirname, 'relaxation-data')
 nprocs    = 2
-pool      = fax.Pool(nprocs)
 
-fax.setup_pool(nprocs)
+ezpool.setup_pool(nprocs)
 
 
 print 'Loading project from', inroot
