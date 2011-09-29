@@ -33,21 +33,21 @@ Example usage
 
 Given a directory such as 'analysis/rmsd/C-alpha/RUN*/CLONE*/GEN*.dat, one could write something like the following:
 
- import fax
+ import rax
  
  root	= 'analysis/rmsd/C-alpha'
  ncores	= 42
- fax.setup_pool(ncores)
+ rax.setup_pool(ncores)
  
  # read in the data using 42 cores
- project = fax.load_project(root)
+ project = rax.load_project(root)
  
  # a function to process each trajectory
  def my_analysis(traj):
  	return "magic result"
  
  # get the results
- results = fax.process_trajectories(project, my_analysis)
+ results = rax.process_trajectories(project, my_analysis)
  
  # finish up
  pool.finish()

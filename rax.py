@@ -541,7 +541,7 @@ def _save_gen(dirname, traj, gen):
 
 def _merge_projects_seq(projs, **initprojkws):
     """
-    Used in the fax.load_project function.
+    Used in the rax.load_project function.
     @param projs (iterable of Projects)
     @param **initprojkws: key-word arguments to be passed to the Project constructor
     @return (Project)
