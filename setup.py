@@ -1,9 +1,9 @@
 from distutils.core import setup
 
-setup(name='fax',
-      version='0.3',
-      py_modules= ['fax'
+setup(name='rax',
+      version='0.4',
+      py_modules= ['rax'
                    ],
 
-      description = "Modules for dealing with Folding@Home/Folding@Work style analysis data"      
+      description = "(Results@X) Modules for dealing with Folding@Home/Folding@Work style analysis data"      
       )

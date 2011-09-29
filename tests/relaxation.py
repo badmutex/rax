@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import fax
+import rax
 
 import numpy as np
 import scipy.sparse as sps
@@ -74,7 +74,7 @@ if __name__ == '__main__':
     ranges     = map(lambda g: map(float, g.split(':')), groups)
 
 
-    fax.set_logging_level(logging.INFO)
+    rax.set_logging_level(logging.INFO)
 
 
     # transition count matrix
@@ -88,13 +88,13 @@ if __name__ == '__main__':
 
     # read the trajectories in to determine the trajectory lifetimes and transition counts
     processor = functools.partial(process_trajectory, ranges)
-    pool      = fax.Pool(nprocs)
-    project   = fax.load_project(fahroot, runs=runs, clones=clones, pool=pool, coalesce=True)
-    results   = fax.process_trajectories(project, processor, pool=pool)
+    pool      = rax.Pool(nprocs)
+    project   = rax.load_project(fahroot, runs=runs, clones=clones, pool=pool, coalesce=True)
+    results   = rax.process_trajectories(project, processor, pool=pool)
 
 
     # # save the assignments
-    # assignments = fax.process_trajectories(project, functools.partial(assignments, ranges), pool=pool)
+    # assignments = rax.process_trajectories(project, functools.partial(assignments, ranges), pool=pool)
     # np.savetxt(outfile, assignments[0], fmt='%d')
     # project.savetxt('test.dat', run, clone, fmt='%f')
     # sys.exit(1)

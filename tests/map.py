@@ -1,5 +1,5 @@
 
-import fax
+import rax
 import ezlog
 
 import sys
@@ -25,11 +25,11 @@ inroot    = os.path.join(mydirname, 'relaxation-data')
 nprocs    = 2
 
 ezlog.set_level(ezlog.INFO)
-fax.setup_pool(nprocs)
+rax.setup_pool(nprocs)
 
 
 log.info('Loading project')
-project     = fax.load_project(inroot, outputfreq=0.5)
+project     = rax.load_project(inroot, outputfreq=0.5)
 find_states = functools.partial(assign, boundary=0.9)
 p2          = project.map(find_states)
 

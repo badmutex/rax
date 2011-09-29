@@ -1,5 +1,5 @@
 
-import fax
+import rax
 import ezlog
 
 import sys
@@ -11,11 +11,11 @@ outroot   = os.path.join(mydirname, 'test-write-project')
 nprocs    = 1
 
 log = ezlog.setup(__name__)
-ezlog.set_level(ezlog.INFO, name=fax.__name__)
+ezlog.set_level(ezlog.INFO, name=rax.__name__)
 ezlog.set_level(ezlog.DEBUG, name=__name__)
 
 
-project = fax.load_project(inroot, gens=[0])
+project = rax.load_project(inroot, gens=[0])
 
 project.set_description('Hello World')
 

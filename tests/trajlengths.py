@@ -1,5 +1,5 @@
 
-import fax
+import rax
 import ezlog
 import ezpool
 
@@ -16,7 +16,7 @@ ezpool.setup_pool(nprocs)
 
 
 print 'Loading project from', inroot
-project = fax.load_project(inroot, outputfreq=0.5)
+project = rax.load_project(inroot, outputfreq=0.5)
 # project.set_outputfrequency(0.5) # ns
 lengths = project.get_trajectory_lengths()
 
