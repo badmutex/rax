@@ -451,22 +451,28 @@ class Project(object):
 
 
         ## write the number of runs, clones, and generations
-        rcgpath = os.path.join(root, self._rcg_file)
-        with open(rcgpath, 'w') as fd:
-            fd.write('%d %d %d' % (self.runs, self.clones, self.gens))
-        _logger.info('Wrote the number of runs (%s), clones (%d), and gens (%d) to %s' % (self.runs, self.clones, self.gens, rcgpath))
+        if self.runs > 0 and self.clones > 0 and self.gens > 0:
+            rcgpath = os.path.join(root, self._rcg_file)
+            with open(rcgpath, 'w') as fd:
+                fd.write('%d %d %d' % (self.runs, self.clones, self.gens))
+            _logger.info('Wrote the number of runs (%s), clones (%d), and gens (%d) to %s' % (self.runs, self.clones, self.gens, rcgpath))
+        else: _logger.warning('Project: (RUNs, CLONEs, GENs) are (%d,%d,%d)' % (self.runs, self.clones, self.gens))
 
         ## write the metadata
-        mdpath = os.path.join(root, self._metadatafile)
-        with open(mdpath, 'w') as fd:
-            for k, v in self.metadata.iteritems():
-                fd.write('%s = %s\n' % (k, v))
-        _logger.info('Wrote metadata to %s' % mdpath)
+        if self.metadata:
+            mdpath = os.path.join(root, self._metadatafile)
+            with open(mdpath, 'w') as fd:
+                for k, v in self.metadata.iteritems():
+                    fd.write('%s = %s\n' % (k, v))
+            _logger.info('Wrote metadata to %s' % mdpath)
+        else: _logger.warning('Project: no metadata provided')
 
         ## write the description
-        with open(os.path.join(root, self._descfile), 'w') as fd:
-            fd.write(self.description)
-            _logger.info('Wrote description')
+        if self.description:
+            with open(os.path.join(root, self._descfile), 'w') as fd:
+                fd.write(self.description)
+                _logger.info('Wrote description')
+        else: _logger.warning('Project: no description provided')
 
         ## copy the extra files
         if self.extrafiles and len(set(self.extrafiles)) == len(self.extrafiles):
